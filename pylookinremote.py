@@ -37,7 +37,7 @@ import urllib.request
 
 
 
-class LOOKinRemote2:
+class LOOKinRemote:
 
 	def __init__(self, networkAddress):
 		"""
@@ -51,7 +51,7 @@ class LOOKinRemote2:
 		#Can't get this to work at all.  :(
 		# #### Looks like "LOOK.in:Discover!" isn't working with the current firmware.  Devices aren't responding even to the Android app.
 		# # """
-		# # Uses the UDP multicast query to find LOOKinRemote2 devices on the
+		# # Uses the UDP multicast query to find LOOKinRemote devices on the
 		# # network.
 		# # """
 		# MCAST_GRP = '192.168.1.255'
@@ -298,7 +298,7 @@ class LOOKinRemote2:
 
 	def data(self):
 		"""
-		Alias for `LOOKinRemote2.remotes` to match the API call.
+		Alias for `LOOKinRemote.remotes` to match the API call.
 		"""
 		return self.remotes()
 
@@ -327,9 +327,9 @@ class LOOKinRemote2:
 		typeID = rootData['Type']
 		ret = None
 		if typeID == 'EF':
-			ret = LOOKinRemote2.ACRemote(self, rootData, remoteData)
+			ret = LOOKinRemote.ACRemote(self, rootData, remoteData)
 		else:
-			ret = LOOKinRemote2.IRRemote(self, rootData, remoteData)
+			ret = LOOKinRemote.IRRemote(self, rootData, remoteData)
 		return ret
 
 	class IRRemote:
@@ -346,20 +346,20 @@ class LOOKinRemote2:
 			'EF': 'Air Conditioner',
 		}
 
-		def __init__(self, lookinRemote2, rootData, remoteData):
+		def __init__(self, lookinRemote, rootData, remoteData):
 			"""
 			Constructor initializing the object.  `rootData` is the remote's
 			data from "data/" and `remoteData` is the remote's data from
 			"data/<UUID>".
 			"""
 			print(remoteData)
-			self._lookinRemote2 = lookinRemote2
+			self._lookinRemote = lookinRemote
 			self._rootData = rootData
 			self._remoteData = remoteData
 			self._uuid = self._rootData['UUID']
 			self._name = self._remoteData['Name']
 			self._typeID = self._rootData['Type']
-			self._typeName = LOOKinRemote2.IRRemote.types.get(self._typeID, self._typeID)
+			self._typeName = LOOKinRemote.IRRemote.types.get(self._typeID, self._typeID)
 			self._updated = datetime.datetime.fromtimestamp(int(self._rootData['Updated']), datetime.timezone.utc)
 			self._functions = self._remoteData.get('Functions')
 
@@ -458,10 +458,10 @@ class LOOKinRemote2:
 
 			def operatingModeSet(self, operatingMode):
 				if isinstance(operatingMode, str):
-					operatingMode = LOOKinRemote2.ACRemote.OPERATINGMODE[operatingMode]
+					operatingMode = LOOKinRemote.ACRemote.OPERATINGMODE[operatingMode]
 				elif isinstance(operatingMode, int):
-					operatingMode = LOOKinRemote2.ACRemote.OPERATINGMODE(operatingMode)
-				if not isinstance(operatingMode, LOOKinRemote2.ACRemote.OPERATINGMODE):
+					operatingMode = LOOKinRemote.ACRemote.OPERATINGMODE(operatingMode)
+				if not isinstance(operatingMode, LOOKinRemote.ACRemote.OPERATINGMODE):
 					raise ValueError(f'Unexpected data type for `operatingMode`: {type(operatingMode)}')
 				self.operatingMode = operatingMode
 
@@ -497,9 +497,9 @@ class LOOKinRemote2:
 
 			def fanSpeedModeSet(self, fanSpeedMode):
 				if isinstance(fanSpeedMode, str):
-					fanSpeedMode = LOOKinRemote2.ACRemote.FANSPEEDMODE[fanSpeedMode]
+					fanSpeedMode = LOOKinRemote.ACRemote.FANSPEEDMODE[fanSpeedMode]
 				elif isinstance(fanSpeedMode, int):
-					fanSpeedMode = LOOKinRemote2.ACRemote.FANSPEEDMODE(fanSpeedMode)
+					fanSpeedMode = LOOKinRemote.ACRemote.FANSPEEDMODE(fanSpeedMode)
 				self.fanSpeedMode = fanSpeedMode
 				
 			def __str__(self):
@@ -507,9 +507,9 @@ class LOOKinRemote2:
 
 			def swingModeSet(self, swingMode):
 				if isinstance(swingMode, str):
-					swingMode = LOOKinRemote2.ACRemote.SWINGMODE[swingMode]
+					swingMode = LOOKinRemote.ACRemote.SWINGMODE[swingMode]
 				elif isinstance(swingMode, int):
-					swingMode = LOOKinRemote2.ACRemote.SWINGMODE(swingMode)
+					swingMode = LOOKinRemote.ACRemote.SWINGMODE(swingMode)
 				self.swingMode = swingMode
 
 		def __init__(self, *args, **kargs):
@@ -580,7 +580,7 @@ class LOOKinRemote2:
 			"""
 			Requests the current status from the device.
 			"""
-			self._remoteDataSet(self._lookinRemote2.remoteData(self._uuid))
+			self._remoteDataSet(self._lookinRemote.remoteData(self._uuid))
 
 		def statusSet(self, status):
 			"""
@@ -588,7 +588,7 @@ class LOOKinRemote2:
 			"""
 			retries = 5
 			for tryNum in range(retries):
-				self._lookinRemote2._get(f'commands/ir/ac/{self._extra}{status.toStatusBytes():04X}')
+				self._lookinRemote._get(f'commands/ir/ac/{self._extra}{status.toStatusBytes():04X}')
 				timeout = time.time() + 30
 				while(time.time() < timeout):
 					time.sleep(5)  #The command takes a few seconds to process even when it works well.
@@ -601,12 +601,12 @@ class LOOKinRemote2:
 				raise TimeoutError(f'FAILED to set status!')
 
 if __name__ == '__main__':
-	# LOOKinRemote2.findInNetwork()  #Can't get this to work right now...
+	# LOOKinRemote.findInNetwork()  #Can't get this to work right now...
 	if len(sys.argv) > 1:
 		ipAddr = sys.argv[1]
 	else:
 		raise ValueError('Please supply an IP/DNS address as the first command line argument e.g. `py pylookinremote2.py 192.168.0.123`.')
-	dev = LOOKinRemote2(ipAddr);
+	dev = LOOKinRemote(ipAddr);
 	print(f'device = {dev.device()}')
 	# if 0:
 		# print('Testing!')
@@ -628,5 +628,5 @@ if __name__ == '__main__':
 	# remotes = dev.remotes()
 	# print(f'remotes = {list(str(remote) for remote in remotes)}')
 	# for remote in remotes:
-		# if isinstance(remote, LOOKinRemote2.ACRemote):
-			# remote.statusSet(LOOKinRemote2.ACRemote.Status('COOL', 23, 'AUTO', 'UNKNOWN00'))
+		# if isinstance(remote, LOOKinRemote.ACRemote):
+			# remote.statusSet(LOOKinRemote.ACRemote.Status('COOL', 23, 'AUTO', 'UNKNOWN00'))
