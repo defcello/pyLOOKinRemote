@@ -581,7 +581,7 @@ if __name__ == '__main__':
 	if len(sys.argv) > 1:
 		ipAddr = sys.argv[1]
 	else:
-		raise ValueError('Please supply an IP/DNS address as the first command line argument.')
+		raise ValueError('Please supply an IP/DNS address as the first command line argument e.g. `py pylookinremote2.py 192.168.0.123`.')
 	dev = LOOKinRemote2(ipAddr);
 	print(f'device = {dev.device()}')
 	# if 0:
