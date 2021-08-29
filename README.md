@@ -52,7 +52,7 @@ This generates the output:
 
 Everything is centered around the `LOOKinRemote` class, instantiated either by `LOOKinRemote('192.168.0.123')` or the class method `LOOKinRemote.findInNetwork()`.
 
-I strongly recommend looking at the source code in "pylookinremote.py" for the most accurate documentation, but here is a list at the time of this writing:
+I strongly recommend looking at the source code in "pylookinremote.py" for the most accurate documentation, but here is the list at the time of this writing:
 
 ### Class `pylookinremote.LOOKinRemote`
 

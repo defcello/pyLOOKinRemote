@@ -645,7 +645,7 @@ class LOOKinRemote:
 			Returns the current status of the device.
 			"""
 			if refresh:
-				self.statusRefresh()
+				return self.statusRefresh()
 			return self._status
 
 		def statusRefresh(self):
@@ -653,6 +653,7 @@ class LOOKinRemote:
 			Requests the current status from the device.
 			"""
 			self._remoteDataSet(self._lookinRemote.remoteData(self._uuid))
+			return self._status
 
 		def statusSet(self, status):
 			"""
