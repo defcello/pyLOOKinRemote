@@ -39,6 +39,30 @@ import urllib.request
 
 class LOOKinRemote:
 
+	"""
+	Use this class to interact with a LOOKin Remote device.  For example:
+
+	@code
+		from pylookinremote import LOOKinRemote
+		devs = LOOKinRemote.findInNetwork()
+		for dev in devs:
+			meteoSensorMeas = dev.sensor("Meteo")
+			temp_C = meteoSensorMeas["Temperature"]
+			temp_F = LOOKinRemote.celsius2Fahrenheit(meteoSensorMeas["Temperature"])
+			humidityRel = meteoSensorMeas["Humidity"]
+			print(f'{dev!s} is reporting: {temp_C}°C/{temp_F:0.1f}°F and {humidityRel}%RH')
+	@endcode
+
+	This generates the output:
+
+		Starting search for available LOOKinRemote devices...
+		...Device Found at 192.168.0.123...
+		...Device Found at 192.168.0.234...
+		...Search complete!  Found 2 LOOKin Remote devices.
+		LOOKinRemote(192.168.0.123) is reporting: 20.7°C/69.3°F and 53.6%RH
+		LOOKinRemote(192.168.0.234) is reporting: 21.0°C/69.8°F and 61.3%RH
+	"""
+
 	def __init__(self, networkAddress):
 		"""
 		Constructor.  `networkAddress` should be either the IP Address or DNS
@@ -79,6 +103,20 @@ class LOOKinRemote:
 		zeroconf.close()
 		print(f'...Search complete!  Found {len(listener.serverAddrs)} LOOKin Remote devices.')
 		return [LOOKinRemote(serverAddr) for serverAddr in listener.serverAddrs]
+
+	@staticmethod
+	def celsius2Fahrenheit(temp_C):
+		"""
+		Returns `temp_C` in degrees Fahrenheit.
+		"""
+		return (float(temp_C) * 9. / 5.) + 32
+
+	@staticmethod
+	def fahrenheit2Celsius(temp_F):
+		"""
+		Returns `temp_F` in degrees Celsius.
+		"""
+		return (float(temp_F) - 32) * 5. / 9.
 
 	def device(self):
 		"""
@@ -476,10 +514,10 @@ class LOOKinRemote:
 					raise ValueError('Only temperatures between 16°C and 31°C are supported.')
 				tempTarget_C = min(31, max(16, int(tempTarget_C)))
 				self.tempTarget_C = tempTarget_C
-				self.tempTarget_F = (tempTarget_C * 9 / 5) + 32
+				self.tempTarget_F = LOOKinRemote.celsius2Fahrenheit(tempTarget_C)
 
 			def tempTargetSet_F(self, tempTarget_F):
-				self.tempTargetSet((tempTarget_F - 32) * 5 / 9)
+				self.tempTargetSet(LOOKinRemote.fahrenheit2Celsius(tempTarget_F))
 
 			def toStatusBytes(self):
 				"""
@@ -543,7 +581,7 @@ class LOOKinRemote:
 			"""
 			Tells the device to use target the Fahrenheit temperature `temp_F`.
 			"""
-			return self.tempSet((temp_F - 32) * 5 / 9)
+			return self.tempSet(LOOKinRemote.fahrenheit2Celsius(temp_F))
 
 		def fanSpeedModeSet(self, fanSpeedMode):
 			"""
@@ -609,22 +647,28 @@ class LOOKinRemote:
 if __name__ == '__main__':
 	devs = LOOKinRemote.findInNetwork()
 	####BEGIN Quick Test of Read/Write Capabilities####
-	for dev in devs:
-		print(f'Testing device: {dev!s}')
-		nameOrig = dev.device()['Name']
-		nameExp = 'TESTING123'
-		dev.deviceSet(nameExp)
-		if (dev.device()['Name'] == nameExp):
-			print('PASSED setting "Name" on device.')
-		else:
-			print('FAILED to set "Name" on device.')
-		dev.deviceSet(nameOrig)
-		if (dev.device()['Name'] == nameOrig):
-			print('PASSED restoring previous "Name" on device.')
-		else:
-			print('FAILED to restore "Name" on device.')
-		print(f'Finished testing device: {dev!s}')
+	# for dev in devs:
+		# print(f'Testing device: {dev!s}')
+		# nameOrig = dev.device()['Name']
+		# nameExp = 'TESTING123'
+		# dev.deviceSet(nameExp)
+		# if (dev.device()['Name'] == nameExp):
+			# print('PASSED setting "Name" on device.')
+		# else:
+			# print('FAILED to set "Name" on device.')
+		# dev.deviceSet(nameOrig)
+		# if (dev.device()['Name'] == nameOrig):
+			# print('PASSED restoring previous "Name" on device.')
+		# else:
+			# print('FAILED to restore "Name" on device.')
+		# print(f'Finished testing device: {dev!s}')
 	####END Quick Test of Read/Write Capabilities####
+	for dev in devs:
+		meteoSensorMeas = dev.sensor("Meteo")
+		temp_C = meteoSensorMeas["Temperature"]
+		temp_F = LOOKinRemote.celsius2Fahrenheit(meteoSensorMeas["Temperature"])
+		humidityRel = meteoSensorMeas["Humidity"]
+		print(f'{dev!s} is reporting: {temp_C}°C/{temp_F:0.1f}°F and {humidityRel}%RH')
 	# print(f'sensorNames = {dev.sensorNames()}')
 	# for sensorName in dev.sensorNames():
 		# print(f'sensors/{sensorName} = {dev.sensor(sensorName)}')
