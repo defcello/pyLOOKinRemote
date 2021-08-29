@@ -216,12 +216,23 @@ class LOOKinRemote:
 		return resp.read()
 
 	def network(self):
+		"""
+		Returns the device's network information.
+		"""
 		return json.loads(self._get('network'))
 
 	def networkScannedSSIDList(self):
+		"""
+		Returns the network SSID's the device found last time it booted up.
+		"""
 		return json.loads(self._get('network/scannedssidlist'))
 
 	def networkSavedSSID(self):
+		"""
+		Returns the device's internal list of saved networks.
+
+		Use `networkAdd` and `networkDel` to modify this list.
+		"""
 		return json.loads(self._get('network/SavedSSID'))
 
 	def networkAdd(self, ssid, password):
@@ -317,28 +328,26 @@ class LOOKinRemote:
 	def commandEvents(self, command):
 		"""
 		Returns the remote's available events for `command`.
+
+		"IR" Command Events
+		(Source: https://documenter.getpostman.com/view/11774062/SzzkddLg?version=latest#b583e8ee-912c-46db-b294-18578c4333a5)
+
+		Event name        	Event ID 	Description                                   	Possible operands
+		ac                	0xEF     	Send command for the AC unit                  	AC Operand in XXXXMTFS, where XXXX - codeset, M - AC Mode, T - temperature offset over 16 degrees, F - fan mode, S - swing mode
+		aiwa              	0x14     	Send aiwa command on 38 kHz                   	Aiwa command
+		localremote       	0xFE     	Send command for saved remote                 	Operand with Remote UUID, function and param
+		nec1              	0x01     	Send NEC1 command on 38 kHz                   	command
+		necx              	0x04     	Send NecX command on 38 kHz                   	command
+		panasonic         	0x05     	Send panasonic command on 38 kHz              	command
+		prontohex         	0xF0     	Send command in ProntoHEX format              	Command in ProntoHEX
+		prontohex-blocked 	?        	?                                             	?
+		raw               	0xFF     	Send command in raw timings format            	string in format: "XX;[YY]" where `XX` is Frequency in Hz and `YY` is raw signal timings.
+		repeat            	0xED     	Send repeat command for previos sended signal 	no operand
+		samsung36         	0x06     	Send Samsung36 command on 38 kHz              	command
+		saved             	0xEE     	Send command from device memory               	Storage item ID
+		sony              	0x03     	Send Sony command on 38 kHz                   	command
 		"""
 		return json.loads(self._get(f'commands/{urllib.parse.quote_plus(command)}'))
-
-	"""
-	"IR" Command Events
-	(Source: https://documenter.getpostman.com/view/11774062/SzzkddLg?version=latest#b583e8ee-912c-46db-b294-18578c4333a5)
-
-	Event name        	Event ID 	Description                                   	Possible operands
-	ac                	0xEF     	Send command for the AC unit                  	AC Operand in XXXXMTFS, where XXXX - codeset, M - AC Mode, T - temperature offset over 16 degrees, F - fan mode, S - swing mode
-	aiwa              	0x14     	Send aiwa command on 38 kHz                   	Aiwa command
-	localremote       	0xFE     	Send command for saved remote                 	Operand with Remote UUID, function and param
-	nec1              	0x01     	Send NEC1 command on 38 kHz                   	command
-	necx              	0x04     	Send NecX command on 38 kHz                   	command
-	panasonic         	0x05     	Send panasonic command on 38 kHz              	command
-	prontohex         	0xF0     	Send command in ProntoHEX format              	Command in ProntoHEX
-	prontohex-blocked 	?        	?                                             	?
-	raw               	0xFF     	Send command in raw timings format            	string in format: "XX;[YY]" where `XX` is Frequency in Hz and `YY` is raw signal timings.
-	repeat            	0xED     	Send repeat command for previos sended signal 	no operand
-	samsung36         	0x06     	Send Samsung36 command on 38 kHz              	command
-	saved             	0xEE     	Send command from device memory               	Storage item ID
-	sony              	0x03     	Send Sony command on 38 kHz                   	command
-	"""
 
 	def data(self):
 		"""
@@ -378,17 +387,22 @@ class LOOKinRemote:
 
 	class IRRemote:
 
-		types = {
-			'00': 'Custom',
-			'01': 'TV',
-			'02': 'Media',
-			'03': 'Light',
-			'04': 'Humidifier/Dehumidifier',
-			'05': 'Air Purifier',
-			'06': 'Robo Vacuum Cleaner',
-			'07': 'Data Device Fan',
-			'EF': 'Air Conditioner',
-		}
+		uuid = None  #`str` UUID of the remote.
+		name = None  #`str` name of the remote.
+		rType = None  #Value from `LOOKinRemote.IRRemote.TYPE`.
+		updated = None  #`datetime.datetime` object.
+		functions = None  #`list` of `str` function names.
+
+		class TYPE(Enum):
+			CUSTOM = 0x00
+			TV = 0x01
+			MEDIA = 0x02
+			LIGHT = 0x03
+			HUMIDIFIER_DEHUMIDIFIER = 0x04
+			AIRPURIFIER = 0x05
+			ROBOVACUUMCLEANER = 0x06
+			DATADEVICEFAN = 0x07
+			AIRCONDITIONER = 0xEF
 
 		def __init__(self, lookinRemote, rootData, remoteData):
 			"""
@@ -400,18 +414,17 @@ class LOOKinRemote:
 			self._lookinRemote = lookinRemote
 			self._rootData = rootData
 			self._remoteData = remoteData
-			self._uuid = self._rootData['UUID']
-			self._name = self._remoteData['Name']
-			self._typeID = self._rootData['Type']
-			self._typeName = LOOKinRemote.IRRemote.types.get(self._typeID, self._typeID)
-			self._updated = datetime.datetime.fromtimestamp(int(self._rootData['Updated']), datetime.timezone.utc)
-			self._functions = self._remoteData.get('Functions')
+			self.uuid = self._rootData['UUID']
+			self.name = self._remoteData['Name']
+			self.rType = LOOKinRemote.IRRemote.TYPE(int(self._rootData['Type'], 16))
+			self.updated = datetime.datetime.fromtimestamp(int(self._rootData['Updated']), datetime.timezone.utc)
+			self.functions = self._remoteData.get('Functions')
 
 		def __repr__(self):
 			return repr((self._rootData, self._remoteData))
 
 		def __str__(self):
-			return f'{self._uuid} - {self._typeName} Remote'
+			return f'{self.uuid} - {self.rType.name} Remote'
 
 	class ACRemote(IRRemote):
 
@@ -420,7 +433,7 @@ class LOOKinRemote:
 			AUTO = 0x1000
 			COOL = 0x2000
 			HEAT = 0x3000
-			DRY = 0x4000  #Supposed to be "Dry" mode, but doesn't work.
+			UNKNOWN04 = 0x4000  #Supposed to be "Dry" mode, but doesn't work.
 			UNKNOWN05 = 0x5000
 			UNKNOWN06 = 0x6000
 			UNKNOWN07 = 0x7000
@@ -501,6 +514,9 @@ class LOOKinRemote:
 				)
 
 			def operatingModeSet(self, operatingMode):
+				"""
+				Sets this object's operating mode to `operatingMode`.
+				"""
 				if isinstance(operatingMode, str):
 					operatingMode = LOOKinRemote.ACRemote.OPERATINGMODE[operatingMode]
 				elif isinstance(operatingMode, int):
@@ -510,6 +526,9 @@ class LOOKinRemote:
 				self.operatingMode = operatingMode
 
 			def tempTargetSet(self, tempTarget_C):
+				"""
+				Sets this object's target temperature to `tempTarget_C` (Celsius).
+				"""
 				if (31 < tempTarget_C or 16 > tempTarget_C):
 					raise ValueError('Only temperatures between 16°C and 31°C are supported.')
 				tempTarget_C = min(31, max(16, int(tempTarget_C)))
@@ -517,6 +536,9 @@ class LOOKinRemote:
 				self.tempTarget_F = LOOKinRemote.celsius2Fahrenheit(tempTarget_C)
 
 			def tempTargetSet_F(self, tempTarget_F):
+				"""
+				Sets this object's target temperature to `tempTarget_F` (Fahrenheit).
+				"""
 				self.tempTargetSet(LOOKinRemote.fahrenheit2Celsius(tempTarget_F))
 
 			def toStatusBytes(self):
@@ -540,6 +562,9 @@ class LOOKinRemote:
 					)
 
 			def fanSpeedModeSet(self, fanSpeedMode):
+				"""
+				Sets this object's fan speed to `fanSpeedMode`.
+				"""
 				if isinstance(fanSpeedMode, str):
 					fanSpeedMode = LOOKinRemote.ACRemote.FANSPEEDMODE[fanSpeedMode]
 				elif isinstance(fanSpeedMode, int):
@@ -550,6 +575,9 @@ class LOOKinRemote:
 				return f'ACStatus({self.operatingMode.name}, {self.tempTarget_C}°C, {self.fanSpeedMode.name}, {self.swingMode.name})'
 
 			def swingModeSet(self, swingMode):
+				"""
+				Sets this object's swing mode to `swingMode`.
+				"""
 				if isinstance(swingMode, str):
 					swingMode = LOOKinRemote.ACRemote.SWINGMODE[swingMode]
 				elif isinstance(swingMode, int):
