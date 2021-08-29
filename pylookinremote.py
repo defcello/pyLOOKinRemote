@@ -28,6 +28,7 @@ from enum import Enum
 import datetime
 import ipaddress
 import json
+import random
 import socket
 import sys
 import time
@@ -46,10 +47,10 @@ class LOOKinRemote:
 		from pylookinremote import LOOKinRemote
 		devs = LOOKinRemote.findInNetwork()
 		for dev in devs:
-			meteoSensorMeas = dev.sensor("Meteo")
-			temp_C = meteoSensorMeas["Temperature"]
-			temp_F = LOOKinRemote.celsius2Fahrenheit(meteoSensorMeas["Temperature"])
-			humidityRel = meteoSensorMeas["Humidity"]
+			meteoSensorMeas = dev.sensor('Meteo')
+			temp_C = meteoSensorMeas['Temperature']
+			temp_F = LOOKinRemote.celsius2Fahrenheit(meteoSensorMeas['Temperature'])
+			humidityRel = meteoSensorMeas['Humidity']
 			print(f'{dev!s} is reporting: {temp_C}°C/{temp_F:0.1f}°F and {humidityRel}%RH')
 	@endcode
 
@@ -215,6 +216,24 @@ class LOOKinRemote:
 		)
 		return resp.read()
 
+	def _put(self, path, **kargs):
+		"""
+		Issues PUT request to API with `path`.  `kargs` will be transmitted as a JSON document.
+		"""
+		url = urllib.parse.SplitResult(
+			'http',
+			self._address,
+			path,
+			'',
+			'',
+		).geturl()
+		resp = urllib.request.urlopen(urllib.request.Request(
+			url,
+			json.dumps(kargs).encode(),
+			method='PUT'
+		), timeout=10)
+		return resp.read()
+
 	def network(self):
 		"""
 		Returns the device's network information.
@@ -247,7 +266,7 @@ class LOOKinRemote:
 		Deletes the network `ssid` from the remote's internal list of supported
 		WiFi hotspots.
 		"""
-		return json.loads(self._del(f'network/savedssid/{urllib.parse.quote_plus(ssid)}'))
+		return self._del(f'network/savedssid/{urllib.parse.quote(ssid)}')
 
 	def networkConnect(self, ssid=None):
 		"""
@@ -287,7 +306,7 @@ class LOOKinRemote:
 		"""
 		Returns the remote's sensor information.
 		"""
-		return json.loads(self._get(f'sensors/{urllib.parse.quote_plus(name)}'))
+		return json.loads(self._get(f'sensors/{urllib.parse.quote(name)}'))
 
 	def sensorDump(self, name, period, duration):
 		"""
@@ -347,7 +366,7 @@ class LOOKinRemote:
 		saved             	0xEE     	Send command from device memory               	Storage item ID
 		sony              	0x03     	Send Sony command on 38 kHz                   	command
 		"""
-		return json.loads(self._get(f'commands/{urllib.parse.quote_plus(command)}'))
+		return json.loads(self._get(f'commands/{urllib.parse.quote(command)}'))
 
 	def data(self):
 		"""
@@ -359,17 +378,207 @@ class LOOKinRemote:
 		"""
 		Returns the remote's saved IR remotes.
 		"""
-		rootsData = json.loads(self._get('data'))
 		remotes = []
-		for rootData in rootsData:
+		for rootData in self.remotesData():
 			remotes.append(self._remoteGet(rootData, self.remoteData(rootData["UUID"])))
 		return remotes
 
+	def remoteDelete(self, uuid):
+		"""
+		Deletes the IR remote `uuid` from the device.
+		"""
+		return self._del(f'data/{uuid}')
+
+	def remotesDelete(self, uuids):
+		"""
+		Deletes the IR remotes `uuids` from the device.
+		
+		`uuids` should be an iterable of `str` objects.
+		"""
+		return [self.remoteDelete(uuid) for uuid in uuids]
+
+	def remotesDeleteAll(self, *, yesIWantToDoThis=False):
+		"""
+		Deletes all saved IR remotes from the device.  Make sure you want to
+		call this!
+		"""
+		assert yesIWantToDoThis, f'Keyword argument `yesIWantToDoThis=True` is required to execute this method.'
+		return self._del(f'data/')
+
 	def remoteData(self, uuid):
 		"""
-		Returns the data specific to the remote with the given `uuid`.
+		Returns the data specific to the saved IR remote with the given `uuid`.
 		"""
 		return json.loads(self._get(f'data/{uuid}'))
+
+	def remotesData(self):
+		"""
+		Returns the general data for all saved remotes.
+		"""
+		return json.loads(self._get('data'))
+
+	def remoteFunctionData(self, uuid, functionName):
+		"""
+		Returns the data for `functionName` of the IR remote `uuid`.
+		"""
+		functionNames = []
+		for remoteFunctionData in self.remoteData(uuid)['Functions']:
+			functionNames.append(remoteFunctionData['Name'])
+		if functionName not in functionNames:
+			raise ValueError(f'Given function name {functionName!r} does NOT exists for remote UUID {uuid!r}.')
+		return json.loads(self._get(f'data/{uuid}/{urllib.parse.quote(functionName)}'))
+
+	def remoteFunctionDelete(self, uuid, functionName):
+		"""
+		Deletes the IR remote `uuid` from the device.
+		"""
+		return self._del(f'data/{uuid}/{urllib.parse.quote(functionName)}')
+
+	def remoteCreate(self, name, irRemoteType, extra='', uuid=None):
+		"""
+		Creates a new IR remote definition on the device.
+
+		The purpose of `extra` can vary by remote type.  For `AIRCONDITIONER`
+		types, this will indicate the codeset to use.
+
+		If `uuid` is `None`, a random one will be generated for you.
+		"""
+		if isinstance(irRemoteType, str):
+			irRemoteType = LOOKinRemote.IRRemote.TYPE[irRemoteType]
+		elif isinstance(irRemoteType, int):
+			irRemoteType = LOOKinRemote.IRRemote.TYPE(irRemoteType)
+		uuids = []
+		for remoteData in self.remotesData():
+			uuids.append(remoteData['UUID'])
+		if uuid is None:  #Generate one automatically.
+			randUUID = lambda: ''.join(random.choices('0123456789ABCDEF', k=4))
+			while True:
+				uuid = randUUID()
+				if uuid in uuids:
+					continue
+				break
+		if uuid in uuids:
+			raise ValueError(f'Given IR Remote UUID {uuid!r} already exists on the remote.')
+		return self._post(
+			'data',
+			Type=hex(irRemoteType.value)[2:].upper(),
+			Updated=str(time.time()),
+			Name=name,
+			UUID=uuid,
+			Extra=extra,
+		)
+
+	def remoteUpdate(self, uuid, name=None, irRemoteType=None, extra=None):
+		"""
+		Updates the IR remote definition for `uuid` on the device.
+
+		`None` values will be unmodified.
+		"""
+		remoteData = self.remoteData(uuid)
+		kargs = {'Updated': str(time.time())}
+		if name is None:
+			if 'Name' in remoteData:
+				kargs['Name'] = remoteData['Name']
+		else:
+			kargs['Name'] = name
+		if irRemoteType is None:
+			if 'Type' in remoteData:
+				kargs['Type'] = remoteData['Type']
+		else:
+			if isinstance(irRemoteType, str):
+				irRemoteType = LOOKinRemote.IRRemote.TYPE[irRemoteType]
+			elif isinstance(irRemoteType, int):
+				irRemoteType = LOOKinRemote.IRRemote.TYPE(irRemoteType)
+			kargs['Type'] = hex(irRemoteType.value)[2:].upper()
+		if extra is None:
+			if 'Extra' in remoteData:
+				kargs['Extra'] = remoteData['Extra']
+		else:
+			kargs['Extra'] = extra
+		return self._put(f'data/{uuid}', **kargs)
+
+	def remoteFunctionCreate(self, uuid, functionName, signals, freqCarrier_Hz=38000):
+		"""
+		Creates a new IR remote function definition on the device for remote
+		`uuid`.
+
+		`signals` should be an iterable of IR commands.  Each IR command should
+		be either a `str` (e.g.
+		`"8000 -4500 9000 -4500 9000 -4500 9000 -4500 9000 -4500 9000 -4500"`)
+		or an iterable of integers (e.g. `[8000, -4500, 9000, -4500, 9000,
+		-4500, 9000, -4500, 9000, -4500, 9000, -4500]`).
+
+		`freqCarrier_Hz` defines the carrier frequency of `signal`.
+
+		For more information, see:  https://www.reddit.com/r/homeautomation/comments/kqaggm/
+		"""
+		#!TODO: `signals` should be an iterable of `Signal` objects.
+		# functionType = '???'  #Cannot find documentation on this.
+		functionNames = []
+		for remoteFunctionData in self.remoteData(uuid)['Functions']:
+			functionNames.append(remoteFunctionData['Name'])
+		if functionName in functionNames:
+			raise ValueError(f'Given function name {functionName!r} already exists for remote UUID {uuid!r}.')
+		irSignals = []
+		for signal in signals:
+			if not isinstance(signal, str):  #Assume it's an iterable.
+				signal = ' '.join(str(x) for x in signal)
+			irSignals.append({
+				'raw': {
+					'Frequency': str(freqCarrier_Hz),
+					'Signal': signal,
+				},
+			})
+		return self._post(
+			f'data/{uuid}',
+			signals=irSignals
+		)
+
+	def remoteFunctionUpdate(self, uuid, functionName, functionType=None, signals=None, freqCarrier_Hz=None):
+		"""
+		Updates the IR remote definition for `uuid` on the device.
+
+		Multi-signal functions are not currently supported.
+
+		`None` values will be unmodified.
+		"""
+		#!TODO: `signals` should be an iterable of `Signal` objects.
+		functionData = self.remoteFunctionData(uuid, functionName)
+		kargs = {'updated': str(time.time())}
+		if functionType is None:
+			if 'Type' in remoteData:
+				kargs['type'] = remoteData['Type']
+		else:
+			kargs['type'] = functionType
+		if freqCarrier_Hz is None:
+			if 'Signals' in remoteData:
+				try:
+					freqCarrier_Hz = int(remoteData['Signals'][0]['raw']['Frequency'])
+				except IndexError:  #No current signals for this function.
+					freqCarrier_Hz = 38000
+			else:
+				freqCarrier_Hz = 38000
+		if signals is None:
+			if 'Signals' in remoteData:
+				signals = [irSignal['raw']['Signal'] for irSignal in remoteData['Signals']]
+			else:
+				signals = []
+		else:
+			irSignals = []
+			for signal in signals:
+				if not isinstance(signal, str):  #Assume it's an iterable.
+					signal = ' '.join(str(x) for x in signal)
+				irSignals.append(signal)
+			signals = irSignals
+		kargs['signals'] = []
+		for signal in signals:
+			kargs['signals'].append({
+				'raw': {
+					'Frequency': str(freqCarrier_Hz),
+					'Signal': signal,
+				}
+			})
+		return self._put(f'data/{uuid}/{urllib.parse.quote(functionName)}', **kargs)
 
 	def _remoteGet(self, rootData, remoteData):
 		"""
@@ -693,10 +902,10 @@ if __name__ == '__main__':
 		# print(f'Finished testing device: {dev!s}')
 	####END Quick Test of Read/Write Capabilities####
 	for dev in devs:
-		meteoSensorMeas = dev.sensor("Meteo")
-		temp_C = meteoSensorMeas["Temperature"]
-		temp_F = LOOKinRemote.celsius2Fahrenheit(meteoSensorMeas["Temperature"])
-		humidityRel = meteoSensorMeas["Humidity"]
+		meteoSensorMeas = dev.sensor('Meteo')
+		temp_C = meteoSensorMeas['Temperature']
+		temp_F = LOOKinRemote.celsius2Fahrenheit(meteoSensorMeas['Temperature'])
+		humidityRel = meteoSensorMeas['Humidity']
 		print(f'{dev!s} is reporting: {temp_C}°C/{temp_F:0.1f}°F and {humidityRel}%RH')
 	# print(f'sensorNames = {dev.sensorNames()}')
 	# for sensorName in dev.sensorNames():
