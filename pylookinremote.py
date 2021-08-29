@@ -44,41 +44,41 @@ class LOOKinRemote:
 		Constructor.  `networkAddress` should be either the IP Address or DNS
 		Address for the target device.
 		"""
+		if isinstance(networkAddress, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
+			networkAddress = str(networkAddress)
 		self._address = networkAddress
-		
-	# @classmethod
-	# def findInNetwork(cls):
-		#Can't get this to work at all.  :(
-		# #### Looks like "LOOK.in:Discover!" isn't working with the current firmware.  Devices aren't responding even to the Android app.
-		# # """
-		# # Uses the UDP multicast query to find LOOKinRemote devices on the
-		# # network.
-		# # """
-		# MCAST_GRP = '192.168.1.255'
-		# MCAST_PORT = 9760
-		# MULTICAST_TTL = 1
-		# # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-		# # s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-		# # s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
-		# message = b'LOOK.in:Discover!'
-		# # multicast_group = ('192.168.1.255', 12345)
-		# # # s.sendto(message, ('192.168.1.197', 61201))    # Create the socket
-		# # s.sendto(message, multicast_group)import socket
-		# # import struct
-		# # IS_ALL_GROUPS = False
-		# sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		# # sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-		# # sock.sendto(message, (MCAST_GRP, MCAST_PORT))
-		# # sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
-		# # if IS_ALL_GROUPS:
-			# # on this port, receives ALL multicast groups
-		# # sock.bind(('', MCAST_PORT))
-		# # else:
-			# # on this port, listen ONLY to MCAST_GRP
-		# sock.bind(('192.168.1.67', MCAST_PORT + 1))
-		# # mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
-		# # sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-		# print(sock.recv(1))
+
+	@classmethod
+	def findInNetwork(cls, timeout_sec=10):
+		"""
+		Searches the network for `timeout_sec` seconds for available LOOKin
+		Remote devices and returns a list of `LOOKinRemote` objects.
+		"""
+		try:
+			from zeroconf import ServiceBrowser, Zeroconf
+		except ImportError:
+			print('`findInNetwork` requires the "zeroconf" library (`pip install zeroconf`).')
+		class Listener:
+			serverAddrs = None
+			def __init__(self):
+				self.serverAddrs = []
+			def add_service(self, zeroconf, type, name):
+				info = zeroconf.get_service_info(type, name)
+				ipAddr = ipaddress.ip_address(info.addresses[0])
+				print(f'...Device Found at {ipAddr!s}...')
+				self.serverAddrs.append(ipAddr)
+			def remove_service(self, *args, **kargs):
+				pass
+			def update_service(self, *args, **kargs):
+				pass
+		zeroconf = Zeroconf()
+		listener = Listener()
+		print('Starting search for available LOOKinRemote devices...')
+		serverBrowser = ServiceBrowser(zeroconf, '_lookin._tcp.local.', listener)
+		time.sleep(timeout_sec)
+		zeroconf.close()
+		print(f'...Search complete!  Found {len(listener.serverAddrs)} LOOKin Remote devices.')
+		return [LOOKinRemote(serverAddr) for serverAddr in listener.serverAddrs]
 
 	def device(self):
 		"""
@@ -244,7 +244,7 @@ class LOOKinRemote:
 		"""
 		Polls the `name` sensor for `duration` seconds and `period` seconds
 		between calls.
-		
+
 		Use `period` of `<=0` seconds to poll as fast as possible.
 		"""
 		print(f'Running sensor dump for {duration} seconds...')
@@ -263,6 +263,12 @@ class LOOKinRemote:
 			if period > 0:
 				time.sleep(max(0, time.time() - timeNext))
 		print(f'...Sensor dump finished.')
+
+	def __repr__(self):
+		return f'LOOKinRemote({self._address})'
+
+	def __str__(self):
+		return self.__repr__()
 
 	def commands(self):
 		"""
@@ -485,7 +491,7 @@ class LOOKinRemote:
 					| self.fanSpeedMode.value
 					| self.swingMode.value
 				)
-			
+
 			def __eq__(self, rhs):
 				if isinstance(rhs, type(self)):
 					return (
@@ -501,7 +507,7 @@ class LOOKinRemote:
 				elif isinstance(fanSpeedMode, int):
 					fanSpeedMode = LOOKinRemote.ACRemote.FANSPEEDMODE(fanSpeedMode)
 				self.fanSpeedMode = fanSpeedMode
-				
+
 			def __str__(self):
 				return f'ACStatus({self.operatingMode.name}, {self.tempTarget_C}°C, {self.fanSpeedMode.name}, {self.swingMode.name})'
 
@@ -601,23 +607,24 @@ class LOOKinRemote:
 				raise TimeoutError(f'FAILED to set status!')
 
 if __name__ == '__main__':
-	# LOOKinRemote.findInNetwork()  #Can't get this to work right now...
-	if len(sys.argv) > 1:
-		ipAddr = sys.argv[1]
-	else:
-		raise ValueError('Please supply an IP/DNS address as the first command line argument e.g. `py pylookinremote2.py 192.168.0.123`.')
-	dev = LOOKinRemote(ipAddr);
-	print(f'device = {dev.device()}')
-	# if 0:
-		# print('Testing!')
-		# nameOrig = dev.device()['Name']
-		# nameExp = 'TESTING123'
-		# dev.deviceSet(nameExp)
-		# if (dev.device()['Name'] != nameExp):
-			# print('FAILED to set "Name" on device.')
-		# dev.deviceSet(nameOrig)
-		# if (dev.device()['Name'] != nameOrig):
-			# print('FAILED to restore "Name" on device.')
+	devs = LOOKinRemote.findInNetwork()
+	####BEGIN Quick Test of Read/Write Capabilities####
+	for dev in devs:
+		print(f'Testing device: {dev!s}')
+		nameOrig = dev.device()['Name']
+		nameExp = 'TESTING123'
+		dev.deviceSet(nameExp)
+		if (dev.device()['Name'] == nameExp):
+			print('PASSED setting "Name" on device.')
+		else:
+			print('FAILED to set "Name" on device.')
+		dev.deviceSet(nameOrig)
+		if (dev.device()['Name'] == nameOrig):
+			print('PASSED restoring previous "Name" on device.')
+		else:
+			print('FAILED to restore "Name" on device.')
+		print(f'Finished testing device: {dev!s}')
+	####END Quick Test of Read/Write Capabilities####
 	# print(f'sensorNames = {dev.sensorNames()}')
 	# for sensorName in dev.sensorNames():
 		# print(f'sensors/{sensorName} = {dev.sensor(sensorName)}')
