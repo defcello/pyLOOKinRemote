@@ -368,6 +368,63 @@ class LOOKinRemote:
 		"""
 		return json.loads(self._get(f'commands/{urllib.parse.quote(command)}'))
 
+	def commandEventNEC1(self, signal):
+		"""
+		Triggers an "nec1" command event with `signal`.
+		
+		`signal` should be a hex string or 32-bit `int`.
+		"""
+		signal = hex(0xFFFFFFFF & int(signal))[2:].upper()
+		return json.loads(self._get(f'commands/ir/nec1/{signal}'))
+
+	def commandEventRaw(self, signal, freqCarrier_Hz=38000):
+		"""
+		Triggers a "raw" command event.
+		
+		`signal` should be either a `str` (e.g.
+		`"8000 -4500 9000 -4500 9000 -4500 9000 -4500 9000 -4500 9000 -4500"`)
+		or an iterable of `int`s (e.g. `[8000, -4500, 9000, -4500, 9000,
+		-4500, 9000, -4500, 9000, -4500, 9000, -4500]`).
+
+		`freqCarrier_Hz` defines the carrier frequency of `signal`.
+		"""
+		if not isinstance(signal, str):  #Assume it's an iterable.
+			signal = ' '.join(str(x) for x in signal)
+		return json.loads(self._get(f'commands/ir/raw/{freqCarrier_Hz};{urllib.parse.quote(signal)}'))
+
+	def commandEventProntoHEX(self, signal):
+		"""
+		Triggers a "raw" command event.
+		
+		`signal` should be either a `str` (e.g. `"0000 006C 0022 0002"`) or an
+		iterable of 16-bit `int`s (e.g. `[0x0000, 0x006C, 0x0022, 0x0002]`).
+		"""
+		if not isinstance(signal, str):  #Assume it's an iterable.
+			signal = ' '.join(hex(0xFFFF & x)[2:].upper() for x in signal)
+		return json.loads(self._get(f'commands/ir/raw/{freqCarrier_Hz};{urllib.parse.quote(signal)}'))
+
+	def commandEventNECX(self, signal):
+		"""
+		Triggers an "necx" command event with `signal`.
+		
+		`signal` should be a hex string or 32-bit `int`.
+		"""
+		signal = hex(0xFFFFFFFF & int(signal))[2:]
+		return json.loads(self._get(f'commands/ir/necx/{signal}'))
+
+	def commandEventLocalRemote(self, uuid, functionCode, signalID=0xFF):
+		"""
+		Triggers a "localremote" command event with `functionCode` and `signalID`.
+		
+		`uuid` should be a `str` or 16-bit `int`.
+		`functionCode` should be a `str` or 8-bit `int`.
+		`signalID` should be a `str` or 8-bit `int`.
+		"""
+		uuid = hex(0xFFFF & int(signal))[2:].upper()
+		functionCode = hex(0xFF & int(functionCode))[2:].upper()
+		signalID = hex(0xFF & int(signalID))[2:].upper()
+		return json.loads(self._get(f'commands/ir/localremote/{uuid}{functionCode}{signalID}'))
+
 	def data(self):
 		"""
 		Alias for `LOOKinRemote.remotes` to match the API call.
@@ -505,7 +562,7 @@ class LOOKinRemote:
 		`signals` should be an iterable of IR commands.  Each IR command should
 		be either a `str` (e.g.
 		`"8000 -4500 9000 -4500 9000 -4500 9000 -4500 9000 -4500 9000 -4500"`)
-		or an iterable of integers (e.g. `[8000, -4500, 9000, -4500, 9000,
+		or an iterable of `int`s (e.g. `[8000, -4500, 9000, -4500, 9000,
 		-4500, 9000, -4500, 9000, -4500, 9000, -4500]`).
 
 		`freqCarrier_Hz` defines the carrier frequency of `signal`.
@@ -752,7 +809,7 @@ class LOOKinRemote:
 
 			def toStatusBytes(self):
 				"""
-				Returns the 16-bit integer with the appropriate status bytes for this object.
+				Returns the 16-bit `int` with the appropriate status bytes for this object.
 				"""
 				return (
 					self.operatingMode.value
@@ -798,7 +855,7 @@ class LOOKinRemote:
 			self._remoteDataSet(self._remoteData)
 
 		def __str__(self):
-			return f'{self._uuid} - {self._typeName} Remote: Status={hex(self._status.toStatusBytes())}; LastStatus={hex(self._statusLast.toStatusBytes())}'
+			return f'{self._uuid} - {self._typeName} Remote: Status={hex(self._status.toStatusBytes()).upper()}; LastStatus={hex(self._statusLast.toStatusBytes()).upper()}'
 
 		def operatingModeSet(self, operatingMode):
 			"""
@@ -911,9 +968,9 @@ if __name__ == '__main__':
 	# for sensorName in dev.sensorNames():
 		# print(f'sensors/{sensorName} = {dev.sensor(sensorName)}')
 	# dev.sensorDump('IR', 0, 20)
-	# print(f'commands = {dev.commands()}')
-	# for command in dev.commands():
-		# print(f'commandEvents/{command} = {dev.commandEvents(command)}')
+	print(f'commands = {dev.commands()}')
+	for command in dev.commands():
+		print(f'commandEvents/{command} = {dev.commandEvents(command)}')
 	# remotes = dev.remotes()
 	# print(f'remotes = {list(str(remote) for remote in remotes)}')
 	# for remote in remotes:
