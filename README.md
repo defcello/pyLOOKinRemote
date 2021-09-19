@@ -28,7 +28,7 @@ Unofficial Python module for interacting with LOOKin Remote devices, largely usi
 Use this class to interact with a LOOKin Remote device.  For example:
 
       import sys
-      sys.path.append('/path/to/pyLOOKinRemote
+      sys.path.append('/path/to/pyLOOKinRemote')
       from pylookinremote import LOOKinRemote
 
       devs = LOOKinRemote.findInNetwork()
@@ -47,6 +47,222 @@ This generates the output:
       ...Search complete!  Found 2 LOOKin Remote devices.
       LOOKinRemote(192.168.0.123) is reporting: 20.7°C/69.3°F and 53.6%RH
       LOOKinRemote(192.168.0.234) is reporting: 21.0°C/69.8°F and 61.3%RH
+
+### Auxiliary Data File
+
+On-device function storage isn't working right now, so this script allows you to
+save and load function data through a JSON file instead.
+
+### Learning Remote Commands
+
+This module offers an automated IR command learning method.
+
+      import sys
+      sys.path.append('/path/to/pyLOOKinRemote')
+      from pylookinremote import LOOKinRemote
+
+      auxDataFilePath='./auxData.json'  #File to save function data in.
+      dev = LOOKinRemote('192.168.0.123', auxDataFilePath)
+      remoteUUID = '1234'  #ID of the IR remote on the LOOKin Remote.
+      newIRFunction = IRRemoteFunction.fromIRSensor(dev, 'myNewFunctionName')  #The "Learn IR Command" routine.
+      if newIRFunction is not None:  #Capture was successful.
+          try:  #The LOOKin Remote can get unstable during captures of long IR sequences, throwing connection errors.
+              remote = dev.remoteFromUUID(remoteUUID)
+              remote.functionUpdate(newIRFunction)
+          except:  #Dump the JSON on error so it can be manually added and all that effort isn't lost.
+              print(f'ERROR while saving function:  newIRFunction = {newIRFunction.toJSON()!r}')
+
+Executing the above script will generate something like the following (IR sequences have been shortened for this example):
+
+      Learning new IR remote function 'myNewFunctionName'...
+      ...Please trigger the desired IR remote function repeatedly on the target LOOKin Remote...
+      Running sensor dump for 300 seconds...
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': '00', 'Raw': '470 -390 470 -390 470 -390 470 -390 470 -390 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '0'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': 'FF', 'Raw': '470 -390 470 -390 470 -390 470 -390 470 -390 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '1630995857'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': 'FF', 'Raw': '470 -390 470 -390 440 -420 470 -390 470 -390 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '1631003614'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': 'FF', 'Raw': '470 -390 470 -390 470 -390 470 -390 470 -390 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '1631009781'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      Connection Reset!  The device might be restarting due to a crash.
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': 'FF', 'Raw': '470 -390 440 -420 470 -390 470 -390 470 -390 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '1631017192'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      Connection Reset!  The device might be restarting due to a crash.
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': '00', 'Raw': '470 -390 440 -420 470 -390 470 -390 470 -390 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '0'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      Connection Reset!  The device might be restarting due to a crash.
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': 'FF', 'Raw': '3510 -1690 470 -1260 470 -390 470 -390 470 -390 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '1630870829'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      Connection Reset!  The device might be restarting due to a crash.
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': '00', 'Raw': '470 -390 470 -390 470 -390 470 -390 440 -410 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '0'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': 'FF', 'Raw': '470 -390 470 -390 470 -390 470 -390 440 -410 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '1630892222'}
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      _get - url='http://192.168.0.123/sensors/IR'
+      {'IsRepeated': '0', 'Protocol': 'FF', 'Raw': '470 -390 470 -390 470 -390 470 -390 440 -420 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '1630900942'}
+      ...Sensor dump finished.  10 signals detected.
+      ...capture complete!  You can stop triggering the IR remote.
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 41% SIMILAR; LENGTH 584<=>308 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 41% SIMILAR; LENGTH 584<=>308 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 100% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 100% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 41% SIMILAR; LENGTH 584<=>308 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 100% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 41% SIMILAR; LENGTH 584<=>308 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 41% SIMILAR; LENGTH 584<=>308 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 38% SIMILAR; LENGTH 144<=>308 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 100% SIMILAR; LENGTH 144<=>144 IS SAME; MATCH!
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 144<=>584 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 144<=>584 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 38% SIMILAR; LENGTH 308<=>144 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 41% SIMILAR; LENGTH 308<=>584 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 41% SIMILAR; LENGTH 308<=>584 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 144<=>584 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 24% SIMILAR; LENGTH 144<=>584 IS DIFFERENT; NOT A MATCH
+      IR COMMANDS ARE 100% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!
+      Found 2 groups of commands.
+
+
+
+      SUCCESS capturing command!  Command selected with 6 matches out of 10 total signals detected.
+      _get - url='http://192.168.0.123/data'
+      _get - url='http://192.168.0.123/data/2345'
+      _get - url='http://192.168.0.123/data/3456'
+      _get - url='http://192.168.0.123/data/1234'
+      _get - url='http://192.168.0.123/data/4567'
+      Error writing function to device; saving to auxiliary data file...
+      ...Done!
+      _get - url='http://192.168.0.123/data/1234'
+
+What's happening here is that the Python code is monitoring the data being captured by the LOOKin Remote's IR sensor and then processes the data to generate what it believes is the desired remote function.
+
+- `Running sensor dump for 300 seconds...`
+    - Monitors the LOOKin Remote's IR sensor for 5 minutes or until 10 IR signals have been captured.
+- `_get - url='http://192.168.0.123/sensors/IR'`
+    - This is a debug message printed every time the script talks to the device.  It is currently enabled to help the user visually see that the device is or is not responding.
+- `Connection Reset!  The device might be restarting due to a crash.`
+    - Indicates the communications with the LOOKin Remote failed, either from a timeout or from the connection being reset.  Usually, this is caused by the LOOKin Remote becoming unstable; long IR sequences seemed to be especially good at causing the LOOKin Remote grief.
+- `{'IsRepeated': '0', 'Protocol': 'FF', 'Raw': '470 -390 470 -390 470 -390 470 -390 470 -390 470 -45000', 'RepeatPause': '0', 'RepeatSignal': '', 'Signal': '0', 'Updated': '1630995857'}`
+    - The raw IR sensor data received from the LOOKin Remote.  The length of this will vary significantly depending on the type of command/remote you're using.
+- `...Sensor dump finished.  10 signals detected.` & `...capture complete!  You can stop triggering the IR remote.`
+    - Indicates the IR sensor monitoring has concluded, either due to 300 seconds having passed or 10 IR signals found.
+- `IR COMMANDS ARE 99% SIMILAR; LENGTH 584<=>584 IS SAME; MATCH!` & `IR COMMANDS ARE 24% SIMILAR; LENGTH 584<=>144 IS DIFFERENT; NOT A MATCH`
+    - This is the debug output of the IR signal correlation routine.  Similar/identical IR signals are grouped together to help the script determine what is the most likely IR signal.
+- `Found 2 groups of commands.`
+    - Indicates how many groupings of similar commands were found.  In this case, the Python code has determined that 2 different types of IR commands were read by the IR sensor.  Groups below a certain size (e.g. just 1 signal) will be ignored.
+- `SUCCESS capturing command!  Command selected with 6 matches out of 10 total signals detected.`
+    - Indicates success/failure in identifying the IR command.  `10` indicates the total number of commands captured, and `6` indicates how many signals out of those `10` were similar.  Ultimately, the IR command selected is the one with the largest grouping.
+- `_get - url='http://192.168.0.123/data'` & `_get - url='http://192.168.0.123/data/1234'`
+    - Debug statements from the script trying to write the function to the LOOKin Remote.
+- `Error writing function to device; saving to auxiliary data file...`
+    - Indicates the writing of the function to the LOOKin Remote failed.  This is usually due to a `500 Internal Server Error` being returned by the LOOKin Remote in response to the "Create Function" call.
+- `...Done!`
+    - Indicates the process of storing the learned IR command has completed.
 
 ## Available Methods
 
