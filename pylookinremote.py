@@ -420,7 +420,7 @@ class LOOKinRemote:
 			'',
 		).geturl()
 		print(f'_get - url={url!r}')
-		resp = urllib.request.urlopen(url, timeout=30)
+		resp = urllib.request.urlopen(url, timeout=5)
 		return resp.read()
 
 	def api_network_connect_GET(self, ssid=None):
@@ -863,7 +863,7 @@ class IRRemote:
 			jsonData.setdefault('remotes', {})
 			jsonData['remotes'][self.uuid] = self.toJSON()
 			with self._auxDataFilePath.open('w') as fdWO:
-				json.dump(jsonData, fdWO)
+				json.dump(jsonData, fdWO, sort_keys=True, indent=4)
 
 	def _functionsRefresh(self):
 		"""
@@ -925,7 +925,7 @@ class IRRemote:
 				irRemoteFunction.functionType.value,
 				signals,
 			)
-		except:
+		except (ConnectionResetError, socket.timeout, urllib.error.URLError):
 			if self._auxDataFilePath is None:
 				raise
 			else:
@@ -988,7 +988,7 @@ class IRRemote:
 				signals,
 				str(time.time())
 			)
-		except:
+		except (ConnectionResetError, socket.timeout, urllib.error.URLError):
 			print('Error writing function to device; saving to auxiliary data file...')
 			self.functions[irRemoteFunction.name] = irRemoteFunction
 			self._auxDataSave()
@@ -1340,6 +1340,8 @@ class IRRemoteFunction:
 				irCommandGroupMostCommon = irCommandGroup
 		if irCommandMostCommon is None:
 			print('FAILED to find any recurring commands.  Please retry.')
+		else:
+			print(f'SUCCESS capturing command!  Command selected with {len(irCommandGroupMostCommon)} matches out of {len(irCommands)} total signals detected.')
 		return IRRemoteFunction(functionName, irCommandMostCommon, IRRemoteFunction.TYPE.SINGLE)
 
 	def __init__(self, functionName, irRemoteCommands, functionType=TYPE.SINGLE):
@@ -1545,7 +1547,7 @@ class IRRemoteCommandRaw(IRRemoteCommand):
 		samplesNum = max(len(lhs), len(rhs))
 		commandDiffThreshold = 0.02  #2% maximum difference to match.
 		commandDiffPct = -1
-		print(f'Lengths: ')
+		# print(f'Lengths: ')
 		for (idx, (lhsSample, rhsSample)) in enumerate(zip(lhs._sequence, rhs._sequence)):
 			pctDiff = abs(abs(lhsSample) - abs(rhsSample)) / (abs(lhsSample) + abs(rhsSample))
 			if (pctDiff > sampleDiffThreshold):
@@ -1569,29 +1571,45 @@ class IRRemoteCommandRaw(IRRemoteCommand):
 
 		Groups with less than `minMatches` members will be excluded from the output.
 		"""
-		ret = {}
+		retCommands = {}  #Maps `IRRemoteCommand` objects to a list of similar `IRRemoteCommand` objects.
+		retIDs = {}  #Maps `int` object IDs to a `set` of `int` object IDs.
 		for (lhs, rhs) in combinations(irRemoteCommands, 2):
+			#Have to use IDs to handle identical IR sequences.
+			lhsID = id(lhs)
+			rhsID = id(rhs)
 			if lhs.isSimilar(rhs):  #Found a match!
-				if lhs in ret:
-					ret[lhs].append(rhs)
-				elif rhs in ret:
-					ret[rhs].append(lhs)
+				if lhsID in retIDs:
+					if rhsID not in retIDs[lhsID]:
+						retCommands[lhs].append(rhs)
+						retIDs[lhsID].add(rhsID)
+				elif rhsID in retIDs:
+					if lhsID not in retIDs[rhsID]:
+						retCommands[rhs].append(lhs)
+						retIDs[rhsID].add(lhsID)
 				else:
-					for key in ret.keys():
-						if key.isSimilar(lhs) or key.isSimilar(rhs):  #Add to existing group.
-							ret[key].append(lhs)
-							ret[key].append(rhs)
-							break
-					else:  #Create new group.
-						ret[lhs] = [lhs, rhs]
+					matchFound = False
+					for key in retCommands.keys():
+						if key.isSimilar(lhs) or key.isSimilar(rhs):  #Add to existing group(s).
+							matchFound = True
+							keyID = id(key)
+							if lhsID not in retIDs[keyID]:
+								retCommands[key].append(lhs)
+								retIDs[keyID].add(lhsID)
+							if rhsID not in retIDs[keyID]:
+								retCommands[key].append(rhs)
+								retIDs[keyID].add(rhsID)
+							#Do NOT break; we want to correlate with all similar key signals.
+					if not matchFound:  #Create new group.
+						retCommands[lhs] = [lhs, rhs]
+						retIDs[lhsID] = {lhsID, rhsID}
 		toDelete = []
-		for (key, values) in ret.items():
+		for (key, values) in retCommands.items():
 			if len(values) < minMatches:
 				toDelete.append(key)
 		for key in toDelete:
-			del ret[key]
-		print(f'Found {len(ret)} groups of commands.\n\n\n')
-		return ret
+			del retCommands[key]
+		print(f'Found {len(retCommands)} groups of commands.\n\n\n')
+		return retCommands
 
 	@staticmethod
 	def _parse(ir_str):
@@ -1636,9 +1654,11 @@ class IRRemoteCommandRaw(IRRemoteCommand):
 
 if __name__ == '__main__':
 	auxDataFilePath='./auxData.json'
-	# devs = LOOKinRemote.findInNetwork(auxDataFilePath=auxDataFilePath)
-	dev = LOOKinRemote('192.168.1.123', auxDataFilePath)
-	irFunction = IRRemoteFunction.fromIRSensor(dev, 'on_fanmode_max_fullswing')
-	if irFunction is not None:
-		remote = dev.remoteFromUUID('ABCD')
-		remote.functionUpdate(irFunction)
+	# dev = LOOKinRemote('192.168.1.123', auxDataFilePath)
+	devs = LOOKinRemote.findInNetwork(auxDataFilePath=auxDataFilePath)
+	for dev in devs:
+		meteoSensorMeas = dev.sensor('Meteo')
+		temp_C = meteoSensorMeas['Temperature']
+		temp_F = LOOKinRemote.celsius2Fahrenheit(meteoSensorMeas['Temperature'])
+		humidityRel = meteoSensorMeas['Humidity']
+		print(f'{dev!s} is reporting: {temp_C}°C/{temp_F:0.1f}°F and {humidityRel}%RH')
