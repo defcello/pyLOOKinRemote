@@ -1,7 +1,7 @@
 # pyLOOKinRemote
 Unofficial Python module for interacting with LOOKin Remote devices, largely using LOOKin's API:
 
-- https://documenter.getpostman.com/view/11774062/SzzkddLg?version=latest#b583e8ee-912c-46db-b294-18578c4333a5
+- https://look-in.club/en/support/api
 
 ## To Install
 
@@ -261,172 +261,473 @@ What's happening here is that the Python code is monitoring the data being captu
     - Debug statements from the script trying to write the function to the LOOKin Remote.
 - `Error writing function to device; saving to auxiliary data file...`
     - Indicates the writing of the function to the LOOKin Remote failed.  This is usually due to a `500 Internal Server Error` being returned by the LOOKin Remote in response to the "Create Function" call.
+    - As indicated, if you supplied an auxiliary data file then the remote command will be stored there instead.
 - `...Done!`
     - Indicates the process of storing the learned IR command has completed.
+
+### Using Remote Commands
+
+This module can trigger remote functions both on the LOOKin Remote device and stored in an auxiliary data file:
+
+      import sys
+      sys.path.append('/path/to/pyLOOKinRemote')
+      from pylookinremote import LOOKinRemote
+
+      auxDataFilePath='./auxData.json'  #File that saved function data is in.
+      dev = LOOKinRemote('192.168.0.123', auxDataFilePath)
+      remoteUUID = '1234'  #ID of the IR remote on the LOOKin Remote.
+      remoteFunctionName = 'myFunctionName'  #`str` name of the function to trigger.
+      remote = dev.remoteFromUUID(remoteUUID)
+      remote.functionTrigger(remoteFunctionName)
+
+Functions defined on the LOOKin Remote device will take precedence over the auxiliary data file.
 
 ## Available Methods
 
 Everything is centered around the `LOOKinRemote` class, instantiated either by `LOOKinRemote('192.168.0.123')` or the class method `LOOKinRemote.findInNetwork()`.
 
-I strongly recommend looking at the source code in "pylookinremote.py" for the most accurate documentation, but here is the list at the time of this writing:
+I strongly recommend using `help(LOOKinRemote)` in Python and/or looking at the source code in "pylookinremote.py" for the most accurate documentation, but here is the list at the time of this writing:
 
 ### Class `pylookinremote.LOOKinRemote`
 
-`LOOKinRemote.findInNetwork(cls, timeout_sec=10)`
-:   Class method.  Searches the network for `timeout_sec` seconds for available LOOKin Remote devices and returns a list of `LOOKinRemote` objects.  Requires that `zeroconf` library be installed.
+The core class.  Each instance of this object represents a single LOOKin Remote device.
 
-`LOOKinRemote.celsius2Fahrenheit(temp_C)`
+The most common way to get these objects is either by:
+
+      auxDataFilePath='./auxData.json'  #File that saved function data is/will-be in.
+      remotes = LOOKinRemote.findInNetwork(auxDataFilePath=auxDataFilePath)  #`list` of `LOOKinRemote` objects.
+      remote = remotes[0]
+
+...or by:
+
+      auxDataFilePath='./auxData.json'  #File that saved function data is/will-be in.
+      ipOrDNSAddr = '192.168.0.123'
+      remote = remote.LOOKinRemote(ipOrDNSAddr, auxDataFilePath)  #Single `LOOKinRemote` object.
+
+#### Public Attributes/Methods
+
+`temp_F = LOOKinRemote.celsius2Fahrenheit(temp_C)`
 :   Static Method.  Returns `temp_C` in degrees Fahrenheit.
 
-`LOOKinRemote.fahrenheit2Celsius(temp_F)`
+`temp_C = LOOKinRemote.fahrenheit2Celsius(temp_F)`
 :   Static Method.  Returns `temp_F` in degrees Celsius.
 
-`LOOKinRemote('192.168.0.123').device()
-:   Returns the "device" information.
+`remotes = LOOKinRemote.findInNetwork(timeout_sec=10, auxDataFilePath=None)`
+:   Class method.  Searches the network for `timeout_sec` seconds for available LOOKin Remote devices and returns a list of `LOOKinRemote` objects.  Requires that `zeroconf` library be installed.  If `auxDataFilePath` is defined, a file will be opened/created there to store/retrieve IR function data.
 
-`LOOKinRemote('192.168.0.123').deviceSet(name=None, timeVal=None, timezone=None, sensormode=None, bluetoothmode=None)`
-:   Sets the "device" values.  `None` parameters will not be modified.
+`remote = LOOKinRemote('192.168.0.123', auxDataFilePath=None)
+:   Constructor accepting an `str` IP or DNS address.  If `auxDataFilePath` is defined, a file will be opened/created there to store/retrieve IR function data.
 
-`LOOKinRemote('192.168.0.123').network()`
-:   Returns the device's network information.
+`remote.api_*_DEL`
+:   Methods that map directly to LOOKin Device API `DEL` calls as defined by LOOKin:  https://look-in.club/en/support/api .
 
-`LOOKinRemote('192.168.0.123').networkScannedSSIDList()`
-:   Returns the network SSID's the device found last time it booted up.
+`remote.api_*_GET`
+:   Methods that map directly to LOOKin Device API `GET` calls as defined by LOOKin:  https://look-in.club/en/support/api .
 
-`LOOKinRemote('192.168.0.123').networkSavedSSID()`
-:   Returns the device's internal list of saved networks.  Use `networkAdd` and `networkDel` to modify this list.
+`remote.api_*_POST`
+:   Methods that map directly to LOOKin Device API `POST` calls as defined by LOOKin:  https://look-in.club/en/support/api .
 
-`LOOKinRemote('192.168.0.123').networkAdd(ssid, password)`
-:   Adds the network `ssid` and `password` to the remote's internal list of supported WiFi hotspots.
+`remote.api_*_PUT`
+:   Methods that map directly to LOOKin Device API `PUT` calls as defined by LOOKin:  https://look-in.club/en/support/api .
 
-`LOOKinRemote('192.168.0.123').networkDel(ssid)`
-:   Deletes the network `ssid` from the remote's internal list of supported WiFi hotspots.
+`remote.commandEventLocalRemote(uuid, functionCode, signalID=0xFF)`
+:   Triggers a "localremote" command event with `functionCode` and `signalID`.
 
-`LOOKinRemote('192.168.0.123').networkConnect(ssid=None)`
-:   Tells the remote to connect to `ssid`, or the strongest available WiFi if `ssid` is `None`.
+`remote.commandEventNEC1(uuid, functionCode, signalID=0xFF)`
+:   Triggers an "NEC1" command event with `signal`.
 
-`LOOKinRemote('192.168.0.123').networkKeepWifi()`
-:   Tells the remote to keep the WiFi connection while "sensor mode" is on.
+`remote.commandEventNECX(signal)`
+:   Triggers an "NECx" command event with `signal`.
 
-`LOOKinRemote('192.168.0.123').networkRemoteControlStop()`
-:   Tells the remote to use the "stop" RemoteControl state.
+`remote.commandEventProntoHEX(signal)`
+:   Triggers a "ProntoHEX" command event.
 
-`LOOKinRemote('192.168.0.123').networkRemoteControlReconnect()`
-:   Tells the remote to use the "reconnect" RemoteControl state.
+`remote.commandEventRaw(signal, freqCarrier_Hz=38000)`
+:   Triggers a "raw" command event.
 
-`LOOKinRemote('192.168.0.123').sensorNames()`
-:   Returns the remote's available sensors.
-
-`LOOKinRemote('192.168.0.123').sensor(name)`
-:   Returns the remote's sensor information.
-
-`LOOKinRemote('192.168.0.123').sensorDump(name, period, duration)`
-:   Polls the `name` sensor for `duration` seconds and `period` seconds between calls.  Use `period` of `<=0` seconds to poll as fast as possible.
-
-`LOOKinRemote('192.168.0.123').commands()`
-:   Returns the remote's available command classes.
-
-`LOOKinRemote('192.168.0.123').commandEvents(command)`
+`remote.commandEvents(command)`
 :   Returns the remote's available events for `command`.
 
-`LOOKinRemote('192.168.0.123').data()`
-:   Alias for `LOOKinRemote.remotes` to match the API call.
+`remote.commandEventSaved(signalID)`
+:   Triggers a "saved" command event with `signalID`.
 
-`LOOKinRemote('192.168.0.123').remotes()`
+`remote.commands()`
+:   Returns the remote's available command classes.
+
+`remote.remoteCreate(name, irRemoteType, extra='', uuid=None)`
+:   Creates a new IR remote definition on the device.
+
+`remote.remoteFromUUID(uuid)`
+:   Returns a new `IRRemote` object for the remote matching `uuid`.
+
+`remote.remotes()`
 :   Returns the remote's saved IR remotes.
 
-`LOOKinRemote('192.168.0.123').remoteData(uuid)`
-:   Returns the data specific to the remote with the given `uuid`.
+`remote.remotesData()`
+:   Returns the general data for all saved remotes.
 
-`LOOKinRemote('192.168.0.123')._remoteGet(rootData, remoteData)`
-:   Returns the appropriate `IRRemote` object for the given data.  `rootData` is the remote's data from "data/" and `remoteData` is the remote's data from "data/<UUID>".
+`remote.remotesDelete(uuids)`
+:   Deletes the IR remotes `uuids` from the device.
 
-### Class `pylookinremote.LOOKinRemote.IRRemote`
+`remote.remotesDeleteAll(*, yesIWantToDoThis=False)`
+:   Deletes all saved IR remotes from the device.
+
+`remote.sensor(name)`
+:   Returns the remote's sensor information.
+
+`remote.sensorDump(name, period, duration, maxSignals=None)`
+:   Polls the `name` sensor for `duration` seconds and `period` seconds between calls.  Terminates early if `maxSignals` have been received.  Returns a `list` of data for all the non-empty captures (only "IR" sensor supported right now).
+
+`remote.sensorNames()`
+:   Returns the remote's available sensors.
+
+### Class `pylookinremote.IRRemote`
 
 Base class for objects returned by `pylookinremote.LOOKinRemote.remotes()`.  Users will rarely instantiate this class themselves.
 
-`LOOKinRemote.IRRemote.TYPE`
-:   `Enum` of possible remote types.
+The most common way to get these objects is either by:
 
-`LOOKinRemote.IRRemote(...).uuid`
-:   Attribute.  `str` UUID of the remote.
+      irRemotes = remote.remotes()  #`list` of `IRRemote` objects.
 
-`LOOKinRemote.IRRemote(...).name`
-:   Attribute.  `str` name of the remote.
+...or by:
 
-`LOOKinRemote.IRRemote(...).rType`
-:   Attribute.  Value from the enum `LOOKinRemote.IRRemote.TYPES`.
+      uuid = '1234'
+      irRemote = remote.remoteFromUUID(uuid)  #Single `IRRemote` object, or `None` if `uuid` didn't match.
 
-`LOOKinRemote.IRRemote(...).updated`
-:   Attribute.  `datetime.datetime` object.
+#### Public Attributes/Methods
 
-`LOOKinRemote.IRRemote(...).functions`
-:   Attribute.  `list` of `str` function names.
+`irRemote.uuid`
+:   `str` UUID of the remote on the LOOKin Remote device.
 
-### Class `pylookinremote.LOOKinRemote.ACRemote`
+`irRemote.name`
+:   `str` name of the remote on the LOOKin Remote device.
 
-Subclass of `pylookinremote.LOOKinRemote.IRRemote` that provides air conditioner/heat pump functions.
+`irRemote.rType`
+:   Type of the remote as an instance of `pylookinremote.IRRemote.TYPE`.
 
-`LOOKinRemote.IRRemote.OPERATINGMODE`
-:   `Enum` of available operating modes:  `OFF`, `AUTO`, `COOL`, and `HEAT`.
+`irRemote.updated`
+:   `datetime.datetime` object reprenting the last time the remote was modified on the LOOKinRemote device.
 
-`LOOKinRemote.IRRemote.FANSPEEDMODE`
-:   `Enum` of available fan speeds:  `MINIMUM`, `MEDIUM`, `MAXIMUM`, and `AUTO`.
+`irRemote.functions`
+:   `dict` mapping `str` function names to `pylookinremote.IRRemoteFunction` objects.
 
-`LOOKinRemote.IRRemote.SWINGMODE`
-:   `Enum` of available swing modes.
+`irRemote = pylookinremote.IRRemote(lookinRemote, uuid, rootData=None, auxDataFilePath=None)`
+:   Constructor initializing the object.  `lookinRemote` is a `LOOKinRemote` object.  `uuid` is the `str` UUID of this remote on `lookinRemote`.
 
-`LOOKinRemote.IRRemote(...).operatingModeSet(operatingMode)`
-:   Tells the device to use operate in `operatingMode`.
+`irRemote.details()`
+:   Returns this remote's details.
 
-`LOOKinRemote.IRRemote(...).tempSet(temp_C)`
-:   Tells the device to use target the Celsius temperature `temp_C`.
+`irRemote.delete()`
+:   Deletes this IR remote from the device.
 
-`LOOKinRemote.IRRemote(...).tempSetF(temp_F)`
-:   Tells the device to use target the Fahrenheit temperature `temp_F`.
+`irRemote.functionCreate(irRemoteFunction)`
+:   Creates a function on the remote device using the data in `irRemoteFunction`.  `irRemoteFunction` should be a `pylookinremote.IRRemoteFunction` object.
 
-`LOOKinRemote.IRRemote(...).fanSpeedModeSet(fanSpeedMode)`
-:   Tells the device to use `fanSpeedMode`.
+`irRemote.functionDelete(functionName)`
+:   Deletes the function `functionName` from the device.
 
-`LOOKinRemote.IRRemote(...)._remoteDataSet(remoteData)`
-:   Updates this object with the data in `remoteData`.
+`irRemote.functionExists(functionName)`
+:   Returns `True` if a function named `functionName` is defined.
 
-`LOOKinRemote.IRRemote(...).swingModeSet(swingMode)`
-:   Tells the device to use `swingMode`.
+`irRemote.functionTrigger(functionName)`
+:   Triggers the function `functionName`.  The exact behavior depends on the type of function.
 
-`LOOKinRemote.IRRemote(...).statusGet(refresh=False)`
-:   Returns the current status of the device.
+`irRemote.functionUpdate(irRemoteFunction, upsert=True)`
+:   Updates the function definition for `irRemoteFunction`, a `pylookinremote.IRRemoteFunction` object.  If `upsert` is true, will create the function if it doesn't currently exist.
 
-`LOOKinRemote.IRRemote(...).statusRefresh()`
+`irRemote.toJSON()`
+:   Returns a JSON-compatible data structure that represents this object.
+
+`irRemote.update(name=None, irRemoteType=None, extra=None)`
+:   Updates the IR remote definition for `uuid` on the device.  `None` values will be unmodified.
+
+### Class `pylookinremote.IRRemote.TYPE`
+
+Enum of possible IR Remote Types.
+
+#### Public Attributes/Methods
+
+`pylookinremote.IRRemote.TYPE.CUSTOM`
+:   `CUSTOM` remote type.
+
+`pylookinremote.IRRemote.TYPE.TV`
+:   `TV` remote type.
+
+`pylookinremote.IRRemote.TYPE.MEDIA`
+:   `MEDIA` remote type.
+
+`pylookinremote.IRRemote.TYPE.LIGHT`
+:   `LIGHT` remote type.
+
+`pylookinremote.IRRemote.TYPE.HUMIDIFIER_DEHUMIDIFIER`
+:   `HUMIDIFIER_DEHUMIDIFIER` remote type.
+
+`pylookinremote.IRRemote.TYPE.AIRPURIFIER`
+:   `AIRPURIFIER` remote type.
+
+`pylookinremote.IRRemote.TYPE.ROBOVACUUMCLEANER`
+:   `ROBOVACUUMCLEANER` remote type.
+
+`pylookinremote.IRRemote.TYPE.DATADEVICEFAN`
+:   `DATADEVICEFAN` remote type.
+
+`pylookinremote.IRRemote.TYPE.AIRCONDITIONER`
+:   `AIRCONDITIONER` remote type.  Remotes of this type should always be instances of `pylookinremote.ACRemote`, a subclass of `pylookinremote.IRRemote`.
+
+### Class `pylookinremote.ACRemote`
+
+Subclass of `pylookinremote.IRRemote` that provides air conditioner/heat pump functions.
+
+Obtain the same way as `pylookinremote.IRRemote` objects:
+
+      irRemotes = remote.remotes()  #Any remotes with type `pylookinremote.IRRemote.TYPE.AIRCONDITIONER` will `ACRemote` objects instead of standard `IRRemote` objects.
+      acRemotes = [irRemote for irRemote in irRemotes if isinstance(irRemote, pylookinremote.ACRemote]
+
+...or by:
+
+      uuid = '1234'
+      irRemote = remote.remoteFromUUID(uuid)  #Will be an `ACRemote` object if the target remote has the type `pylookinremote.IRRemote.TYPE.AIRCONDITIONER`.
+      acRemote = irRemote if isinstance(irRemote, pylookinremote.ACRemote) else None
+
+#### Public Attributes/Methods
+
+`acRemote.operatingModeSet(operatingMode)`
+:   Tells the device to switch operating mode to `operatingMode`.  `operatingMode` should be an instance of `pylookinremote.ACRemote.OPERATINGMODE`.
+
+`acRemote.tempSet(temp_C)`
+:   Tells the device to target the Celsius temperature `temp_C`.
+
+`acRemote.tempSetF(temp_F)`
+:   Tells the device to target the Fahrenheit temperature `temp_F`.
+
+`acRemote.fanSpeedModeSet(fanSpeedMode)`
+:   Tells the device to use `fanSpeedMode`.  `fanSpeedMode` should be an instance of `pylookinremote.ACRemote.FANSPEEDMODE`.
+
+`acRemote.swingModeSet(swingMode)`
+:   Tells the device to use `swingMode`.  `swingMode` should be an instance of `pylookinremote.ACRemote.SWINGMODE`.
+
+`acRemote.statusGet(refresh=False)`
+:   Returns the current status of the device.  Will return the cached state unless `refresh` is `True`.
+
+`acRemote.statusRefresh()`
 :   Requests the current status from the device.
 
-`LOOKinRemote.IRRemote(...).statusSet(status)`
-:   Modifies the device's status to match `status`.
+`acRemote.statusSet(status)`
+:   Modifies the device's status to match `status`.  `status` should be an instance of `pylookinremote.ACRemote.Status`.
 
-### Class `pylookinremote.LOOKinRemote.ACRemote.Status`
+### Class `pylookinremote.ACRemote.OPERATINGMODE`
 
-Class representing a status of the air conditioner/heat pump device.  Users can pass an instance of this object to `LOOKinRemote.IRRemote(...).statusSet(status)`.
+Enum of available air conditioner/heat pump operating modes.
 
-`pylookinremote.LOOKinRemote.ACRemote.Status(operatingMode, tempTarget_C, fanSpeedMode, swingMode)`
+#### Public Attributes/Methods
+
+`pylookinremote.ACRemote.OPERATINGMODE.OFF`
+:   Air conditioner is off.
+
+`pylookinremote.ACRemote.OPERATINGMODE.AUTO`
+:   Air conditioner is on auto.
+
+`pylookinremote.ACRemote.OPERATINGMODE.COOL`
+:   Air conditioner is cooling.
+
+`pylookinremote.ACRemote.OPERATINGMODE.HEAT`
+:   Air conditioner is heating.
+
+### Class `pylookinremote.ACRemote.FANSPEEDMODE`
+
+Enum of available air conditioner/heat pump fan speed modes.
+
+#### Public Attributes/Methods
+
+`pylookinremote.ACRemote.FANSPEEDMODE.MINIMUM`
+:   Air conditiner fan speed is at minimum speed.
+
+`pylookinremote.ACRemote.FANSPEEDMODE.MEDIUM`
+:   Air conditiner fan speed is at a moderate speed.
+
+`pylookinremote.ACRemote.FANSPEEDMODE.MAXIMUM`
+:   Air conditiner fan speed is at maximum speed.
+
+`pylookinremote.ACRemote.FANSPEEDMODE.AUTO`
+:   Air conditioner fan speed is automatic.
+
+### Class `pylookinremote.ACRemote.SWINGMODE`
+
+Enum of available air conditioner/heat pump diffuser swing modes.
+
+#### Public Attributes/Methods
+
+No modes appear to be working right now (at least for my devices), so all are marked as `UNDEFINED`.
+
+### Class `pylookinremote.ACRemote.Status`
+
+Class representing a status of the air conditioner/heat pump device.
+
+This is typically obtained by:
+
+      acStatus = acRemote.statusGet()
+
+#### Public Attributes/Methods
+
+`acStatus.operatingMode`
+:   Instance of `pylookinremote.ACRemote.OPERATINGMODE`.
+
+`acStatus.tempTarget_C`
+:   Target temperature in degrees Celsius.
+
+`acStatus.tempTarget_F`
+:   Target temperature in degrees Fahrenheit.
+
+`acStatus.fanSpeedMode`
+:   Instance of `pylookinremote.ACRemote.FANSPEEDMODE`.
+
+`acStatus.swingMode`
+:   Instance of `pylookinremote.ACRemote.SWINGMODE`.
+
+`acStatus = pylookinremote.ACRemote.Status(operatingMode, tempTarget_C, fanSpeedMode, swingMode)`
 :   Constructor.
 
-`pylookinremote.LOOKinRemote.ACRemote.Status.fromStatusBytes(cls, statusBytes)`
-:   Class method.  Alternate constructor using the status bytes reported by the LOOKin Remote.
+`acStatus = pylookinremote.ACRemote.Status.fromStatusBytes(statusBytes)`
+:   Class method.  Creates an instance of this class using the data contained in `statusBytes`.
 
-`pylookinremote.LOOKinRemote.ACRemote.Status(...).operatingModeSet(operatingMode)`
+`acStatus.operatingModeSet(operatingMode)`
 :   Sets this object's operating mode to `operatingMode`.
 
-`pylookinremote.LOOKinRemote.ACRemote.Status(...).tempTargetSet(tempTarget_C)`
+`acStatus.tempTargetSet(tempTarget_C)`
 :   Sets this object's target temperature to `tempTarget_C` (Celsius).
 
-`pylookinremote.LOOKinRemote.ACRemote.Status(...).tempTargetSet_F(tempTarget_F)`
+`acStatus.tempTargetSet_F(tempTarget_F)`
 :   Sets this object's target temperature to `tempTarget_F` (Fahrenheit).
 
-`pylookinremote.LOOKinRemote.ACRemote.Status(...).toStatusBytes()`
+`acStatus.toStatusBytes()`
 :   Returns the 16-bit integer with the appropriate status bytes for this object.
 
-`pylookinremote.LOOKinRemote.ACRemote.Status(...).fanSpeedModeSet(fanSpeedMode)`
+`acStatus.fanSpeedModeSet(fanSpeedMode)`
 :   Sets this object's fan speed to `fanSpeedMode`.
 
-`pylookinremote.LOOKinRemote.ACRemote.Status(...).swingModeSet(swingMode)`
+`acStatus.swingModeSet(swingMode)`
 :   Sets this object's swing mode to `swingMode`.
+
+### Class `pylookinremote.IRRemoteFunction`
+
+Class representing a function of an IR Remote.
+
+This is typically obtained by:
+
+      irFunctions = irRemote.functions()
+      irFunction = irFunctions['myFunctionName']
+
+#### Public Attributes/Methods
+
+`irFunction.name`
+:   `str` name of the function.
+
+`irFunction.functionType`
+:   Type of the function as an instance of `pylookinremote.IRRemoteFunction.TYPE`.
+
+`irFunction.irCommands`
+:   `tuple` of `pylookinremote.IRRemoteCommand` objects.  `None` indicates the commands are stored on the LOOKin Remote device.
+
+`irFunction = pylookinremote.IRRemoteFunction.fromJSON(jsonData)`
+:   Static method.  Creates a new `IRRemoteFunction` object from the given `jsonData`.
+
+`irFunction = pylookinremote.IRRemoteFunction.fromIRSensor(lookinRemote, functionName, functionType=TYPE.SINGLE)`
+:   Static method.  Creates/"Learns" a new `IRRemoteFunction` object from IR sequences detected by the given `lookinRemote`'s IR sensor.  This is a function that requires guided user interaction with the LOOKin Remote device.
+
+`irFunction = pylookinremote.IRRemoteFunction(functionName, irRemoteCommands, functionType=TYPE.SINGLE)`
+:   Constructor.  `functionName` should be a `str` name for the function.  `irRemoteCommands` should be either an iterable of `IRRemoteCommand` objects or a single `IRRemoteCommand` object.  `functionType` should be a value from `IRRemoteFunction.TYPE`.
+
+`irFunction.toJSON()`
+:   Returns this object serialized into a JSON-compatible data structure.
+
+`irFunction.trigger(lookinRemote)`
+:   Triggers this function on the given `lookinRemote`.
+
+### Class `pylookinremote.IRRemoteCommand.TYPE`
+
+Enum of possible IR Remote Function types.
+
+#### Public Attributes/Methods
+
+`pylookinremote.IRRemoteFunction.TYPE.SINGLE`
+:   `SINGLE` function type.
+
+`pylookinremote.IRRemoteFunction.TYPE.TOGGLE`
+:   `TOGGLE` remote type.
+
+### Class `pylookinremote.IRRemoteCommand`
+
+Base class for IR Remote Commands.  This is not useful until it is subclassed.
+
+This is typically obtained by:
+
+      irFunctions = irRemote.functions()
+      irFunction = irFunctions['myFunctionName']
+      irCommands = irFunction.irCommands
+      irCommand = irCommands[0]
+
+...or by direct construction of one of its subclasses:
+
+      irCommandRaw = pylookinremote.IRRemoteCommandRaw('470 -390 470 -390 470 -390 470 -390 470 -390 470 -45000')
+
+#### Public Attributes/Methods
+
+`irCommand.typeName`
+:   `str` name of the command type.
+
+`irCommand = pylookinremote.IRRemoteCommand.fromJSON(jsonData)`
+:   Static method.  Creates a new `IRRemoteCommand` object--or one of its appropriate subclasses--from the given `jsonData`.
+
+`irCommand = pylookinremote.IRRemoteCommand.fromIRSensorData(jsonSensorData)`
+:   Static method.  Creates a new `IRRemoteCommand` object--or one of its appropriate subclasses--from the given `jsonSensorData`.  `jsonSensorData` should be as it was returned by `LOOKinRemote.sensor('IR')`.  Only "raw" commands are currently supported.
+
+`irCommand = pylookinremote.IRRemoteCommand(typeName)`
+:   Constructor.  `typeName` should be a `str` name for the command type (e.g. "raw").
+
+`irCommand.toJSON()`
+:   Returns a JSON-compatible data structure that represents this object.
+
+`irCommand.trigger(lookinRemote)`
+:   Triggers this command on the given `lookinRemote`.
+
+### Class `pylookinremote.IRRemoteCommandUndefined`
+
+Represents an undefined-type remote command.
+
+#### Public Attributes/Methods
+
+`irCommand.data`
+:   Python `object` of relevant data.
+
+`irCommand = pylookinremote.IRRemoteCommandUndefined(typeName, data)`
+:   Constructor.  `typeName` should be a `str` name for the command type (e.g. "raw"), and `data` can be anything.
+
+`irCommand.toJSON()`
+:   Returns a JSON-compatible data structure that represents this object.
+
+`irCommand.trigger(lookinRemote)`
+:   Triggers this command on the given `lookinRemote`.
+
+### Class `pylookinremote.IRRemoteCommandRaw`
+
+Represents a raw-type remote command sequence.
+
+#### Public Attributes/Methods
+
+`irCommandRaw = pylookinremote.IRRemoteCommandRaw(sequence, freqCarrier_Hz=38000)`
+:   Constructor.  `sequence` should be an IR command sequence either as a `str` or iterable of `int`s.
+
+`irCommandRaw.isSimilar(rhs)`
+:   Returns `True` if `rhs` is similar to this object; `False` otherwise.
+
+`len(irCommandRaw)`
+:   Returns the length of the stored IR sequence.
+
+`irCommandRaw.toJSON()`
+:   Returns a JSON-compatible data structure that represents this object.
+
+`irCommandRaw.toLOOKinRemoteAPIJSON()`
+:   Returns a JSON-compatible data structure that represents this object appropriately for the LOOKin Device API.
+
+`irCommandRaw.trigger(lookinRemote)`
+:   Triggers this command on the given `lookinRemote`.

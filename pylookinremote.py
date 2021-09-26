@@ -799,9 +799,11 @@ class IRRemote:
 
 	def __init__(self, lookinRemote, uuid, rootData=None, auxDataFilePath=None):
 		"""
-		Constructor initializing the object.  `rootData` is the remote's
-		data from "data/" and `remoteData` is the remote's data from
-		"data/<UUID>".
+		Constructor initializing the object.  `lookinRemote` is a `LOOKinRemote`
+		object.  `uuid` is the `str` UUID of this remote on `lookinRemote`.
+
+		`rootData` is the remote's data from "data/".  If `None`, this will be
+		fetched automatically.
 
 		`auxDataFilePath` may be a `str` or `pathlib.Path` object defining a
 		local file to save backup/auxiliary information to, particularly
@@ -965,7 +967,8 @@ class IRRemote:
 
 	def functionUpdate(self, irRemoteFunction, upsert=True):
 		"""
-		Updates the function definition for `irRemoteFunction`.
+		Updates the function definition for `irRemoteFunction`, a
+		`pylookinremote.IRRemoteFunction` object.
 
 		If `upsert` is true, will create the function if it doesn't currently
 		exist.
@@ -1209,27 +1212,33 @@ class ACRemote(IRRemote):
 
 	def operatingModeSet(self, operatingMode):
 		"""
-		Tells the device to use operate in `operatingMode`.
+		Tells the device to switch operating mode to `operatingMode`.
+
+		`operatingMode` should be an instance of
+		`pylookinremote.ACRemote.OPERATINGMODE`.
 		"""
 		self._status.operatingModeSet(operatingMode)
 		self.statusSet(self._status)
 
 	def tempSet(self, temp_C):
 		"""
-		Tells the device to use target the Celsius temperature `temp_C`.
+		Tells the device to target the Celsius temperature `temp_C`.
 		"""
 		self._status.tempTargetSet(temp_C)
 		self.statusSet(self._status)
 
 	def tempSetF(self, temp_F):
 		"""
-		Tells the device to use target the Fahrenheit temperature `temp_F`.
+		Tells the device to target the Fahrenheit temperature `temp_F`.
 		"""
 		return self.tempSet(LOOKinRemote.fahrenheit2Celsius(temp_F))
 
 	def fanSpeedModeSet(self, fanSpeedMode):
 		"""
 		Tells the device to use `fanSpeedMode`.
+
+		`fanSpeedMode` should be an instance of
+		`pylookinremote.ACRemote.FANSPEEDMODE`.
 		"""
 		self._status.fanSpeedModeSet(operatingMode)
 		self.statusSet(self._status)
@@ -1252,6 +1261,9 @@ class ACRemote(IRRemote):
 	def swingModeSet(self, swingMode):
 		"""
 		Tells the device to use `swingMode`.
+
+		`swingMode` should be an instance of
+		`pylookinremote.ACRemote.SWINGMODE`.
 		"""
 		self._status.swingModeSet(operatingMode)
 		self.statusSet(self._status)
@@ -1267,6 +1279,8 @@ class ACRemote(IRRemote):
 	def statusRefresh(self):
 		"""
 		Requests the current status from the device.
+
+		Will return the cached state unless `refresh` is `True`.
 		"""
 		self._remoteDataSet(self._lookinRemote.remoteData(self._uuid))
 		return self._status
@@ -1274,6 +1288,8 @@ class ACRemote(IRRemote):
 	def statusSet(self, status):
 		"""
 		Modifies the device's status to match `status`.
+
+		`status` should be an instance of `pylookinremote.ACRemote.Status`.
 		"""
 		retries = 5
 		for tryNum in range(retries):
@@ -1300,7 +1316,7 @@ class IRRemoteFunction:
 
 	name = None  #`str` name of the function.
 	functionType = None  #Value from `IRRemoteFunction.TYPE`.
-	irCommands = None  #`tuple` of IRRemoteCommand` objects.  `None` indicates the commands are stored on the remote device.
+	irCommands = None  #`tuple` of `IRRemoteCommand` objects.  `None` indicates the commands are stored on the remote device.
 
 	@staticmethod
 	def fromJSON(jsonData):
@@ -1348,8 +1364,9 @@ class IRRemoteFunction:
 		"""
 		NOTE: This does not appear to work properly on LOOKin Remote devices.
 
-		Creates a new IR remote function definition `functionName` on the device
-		for remote `uuid`.
+		Constructor.
+
+		`functionName` should be a `str` name for the function.
 
 		`irRemoteCommands` should be either an iterable of `IRRemoteCommand`
 		objects or a single `IRRemoteCommand` object.
@@ -1428,7 +1445,8 @@ class IRRemoteCommand:
 	@staticmethod
 	def fromJSON(jsonData):
 		"""
-		Creates a new `IRRemoteCommand` object from the given `jsonData`.
+		Creates a new `IRRemoteCommand` object--or one of its appropriate
+		subclasses--from the given `jsonData`.
 		"""
 		typeName = next(iter(jsonData.keys()), None)  #Should only be one item in the `dict`.
 		if typeName == 'raw':
@@ -1448,7 +1466,8 @@ class IRRemoteCommand:
 	@staticmethod
 	def fromIRSensorData(jsonSensorData):
 		"""
-		Creates a new `IRRemoteCommand` object from the given `jsonSensorData`.
+		Creates a new `IRRemoteCommand` object--or one of its appropriate
+		subclasses--from the given `jsonSensorData`.
 
 		`jsonSensorData` should be as it was returned by
 		`LOOKinRemote.sensor('IR')`.  Only "raw" commands are currently
@@ -1513,6 +1532,14 @@ class IRRemoteCommandUndefined(IRRemoteCommand):
 class IRRemoteCommandRaw(IRRemoteCommand):
 
 	def __init__(self, sequence, freqCarrier_Hz=38000):
+		"""
+		Constructor.
+
+		`sequence` should be an IR command sequence either as a `str` or
+		iterable of `int`s.
+
+		`freqCarrier_Hz` should be a positive `int`.
+		"""
 		super().__init__('raw')
 		if isinstance(sequence, str):
 			sequence = IRRemoteCommandRaw._parse(sequence)
@@ -1627,6 +1654,9 @@ class IRRemoteCommandRaw(IRRemoteCommand):
 		return (self == rhs or IRRemoteCommandRaw._compare(self, rhs))
 
 	def __len__(self):
+		"""
+		Returns the length of the stored IR sequence.
+		"""
 		return len(self._sequence)
 
 	def toJSON(self):
@@ -1637,7 +1667,8 @@ class IRRemoteCommandRaw(IRRemoteCommand):
 
 	def toLOOKinRemoteAPIJSON(self):
 		"""
-		Returns the JSON representation of this object.
+		Returns a JSON-compatible data structure that represents this object
+		appropriately for the LOOKin Device API.
 		"""
 		return {
 			'raw': {
