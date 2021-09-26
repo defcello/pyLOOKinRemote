@@ -3,26 +3,6 @@ Unofficial Python module for interacting with LOOKin Remote devices, largely usi
 
 - https://look-in.club/en/support/api
 
-## To Install
-
-1. Download the repository files (or at least "pylookinremote.py").
-2. Install Python 3.8 or newer (older versions might work, but not guaranteed).
-3. Vanilla Python is fine for most functions, but if you want to use device discovery, install the ["zeroconf"](https://pypi.org/project/zeroconf/) library:
-    i. Open a command line interface.
-    ii. Run the command `pip install zeroconf`.
-        a. Windows: `py -3.8 -m pip install zeroconf`
-        b. Linux: `python3.8 -m pip install zeroconf`
-4. Download the "pyLOOKinRemote" repository files to your computer, or at least its "pylookinremote.py" file.
-
-## To Uninstall
-
-1. Delete the "pyLOOKinRemote" repository files from your computer.
-2. If you installed "zeroconf", you may want to uninstall that as well.
-    i. Open a command line interface.
-    ii. Run the command `pip uninstall zeroconf`.
-        a. Windows: `py -3.8 -m pip uninstall zeroconf`
-        b. Linux: `python3.8 -m pip uninstall zeroconf`
-
 ## To Use
 
 Use this class to interact with a LOOKin Remote device.  For example:
@@ -47,6 +27,26 @@ This generates the output:
       ...Search complete!  Found 2 LOOKin Remote devices.
       LOOKinRemote(192.168.0.123) is reporting: 20.7°C/69.3°F and 53.6%RH
       LOOKinRemote(192.168.0.234) is reporting: 21.0°C/69.8°F and 61.3%RH
+
+## To Install
+
+1. Download the repository files (or at least "pylookinremote.py").
+2. Install Python 3.8 or newer (older versions might work, but not guaranteed).
+3. Vanilla Python is fine for most functions, but if you want to use device discovery, install the ["zeroconf"](https://pypi.org/project/zeroconf/) library:
+    i. Open a command line interface.
+    ii. Run the command `pip install zeroconf`.
+        a. Windows: `py -3.8 -m pip install zeroconf`
+        b. Linux: `python3.8 -m pip install zeroconf`
+4. Download the "pyLOOKinRemote" repository files to your computer, or at least its "pylookinremote.py" file.
+
+## To Uninstall
+
+1. Delete the "pyLOOKinRemote" repository files from your computer.
+2. If you installed "zeroconf", you may want to uninstall that as well.
+    i. Open a command line interface.
+    ii. Run the command `pip uninstall zeroconf`.
+        a. Windows: `py -3.8 -m pip uninstall zeroconf`
+        b. Linux: `python3.8 -m pip uninstall zeroconf`
 
 ### Auxiliary Data File
 
