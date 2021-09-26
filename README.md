@@ -48,12 +48,12 @@ This generates the output:
         a. Windows: `py -3.8 -m pip uninstall zeroconf`
         b. Linux: `python3.8 -m pip uninstall zeroconf`
 
-### Auxiliary Data File
+## Auxiliary Data File
 
 On-device function storage isn't working right now, so this script allows you to
 save and load function data through a JSON file instead.
 
-### Learning Remote Commands
+## Learning Remote Commands
 
 This module offers an automated IR command learning method.
 
@@ -265,7 +265,7 @@ What's happening here is that the Python code is monitoring the data being captu
 - `...Done!`
     - Indicates the process of storing the learned IR command has completed.
 
-### Using Remote Commands
+## Using Remote Commands
 
 This module can trigger remote functions both on the LOOKin Remote device and stored in an auxiliary data file:
 
