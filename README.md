@@ -7,8 +7,6 @@ Unofficial Python module for interacting with LOOKin Remote devices, largely usi
 
 Use this class to interact with a LOOKin Remote device.  For example:
 
-      import sys
-      sys.path.append('/path/to/pyLOOKinRemote')
       from pylookinremote import LOOKinRemote
 
       devs = LOOKinRemote.findInNetwork()
@@ -30,35 +28,25 @@ This generates the output:
 
 ## To Install
 
-1. Download the repository files (or at least "pylookinremote.py").
-2. Install Python 3.8 or newer (older versions might work, but not guaranteed).
-3. Vanilla Python is fine for most functions, but if you want to use device discovery, install the ["zeroconf"](https://pypi.org/project/zeroconf/) library:
-    i. Open a command line interface.
-    ii. Run the command `pip install zeroconf`.
-        a. Windows: `py -3.8 -m pip install zeroconf`
-        b. Linux: `python3.8 -m pip install zeroconf`
-4. Download the "pyLOOKinRemote" repository files to your computer, or at least its "pylookinremote.py" file.
+1. Install from PyPI using `pip`:
+    - Linux:  `pip install pyLOOKinRemote`
+    - Windows:  `py -m pip install pyLOOKinRemote`
 
 ## To Uninstall
 
-1. Delete the "pyLOOKinRemote" repository files from your computer.
-2. If you installed "zeroconf", you may want to uninstall that as well.
-    i. Open a command line interface.
-    ii. Run the command `pip uninstall zeroconf`.
-        a. Windows: `py -3.8 -m pip uninstall zeroconf`
-        b. Linux: `python3.8 -m pip uninstall zeroconf`
+1. Uninstall using `pip`:
+    - Linux:  `pip uninstall pyLOOKinRemote`
+    - Windows:  `py -m pip uninstall pyLOOKinRemote`
 
 ## Auxiliary Data File
 
-On-device function storage isn't working right now, so this script allows you to
-save and load function data through a JSON file instead.
+On-device function storage doesn't appear to be working right now, so this
+script allows you to save and load function data through a JSON file instead.
 
 ## Learning Remote Commands
 
 This module offers an automated IR command learning method.
 
-      import sys
-      sys.path.append('/path/to/pyLOOKinRemote')
       from pylookinremote import LOOKinRemote
 
       auxDataFilePath='./auxData.json'  #File to save function data in.
@@ -269,8 +257,6 @@ What's happening here is that the Python code is monitoring the data being captu
 
 This module can trigger remote functions both on the LOOKin Remote device and stored in an auxiliary data file:
 
-      import sys
-      sys.path.append('/path/to/pyLOOKinRemote')
       from pylookinremote import LOOKinRemote
 
       auxDataFilePath='./auxData.json'  #File that saved function data is in.

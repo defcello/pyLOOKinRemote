@@ -1693,3 +1693,12 @@ if __name__ == '__main__':
 		temp_F = LOOKinRemote.celsius2Fahrenheit(meteoSensorMeas['Temperature'])
 		humidityRel = meteoSensorMeas['Humidity']
 		print(f'{dev!s} is reporting: {temp_C}°C/{temp_F:0.1f}°F and {humidityRel}%RH')
+	dev = LOOKinRemote('192.168.1.197', auxDataFilePath)
+	remoteUUID = '4012'  #ID of the IR remote on the LOOKin Remote.
+	newIRFunction = IRRemoteFunction.fromIRSensor(dev, 'on_heatmode_75F_auto_fullswing')  #The "Learn IR Command" routine.
+	if newIRFunction is not None:  #Capture was successful.
+		try:  #The LOOKin Remote can get unstable during captures of long IR sequences, throwing connection errors.
+			remote = dev.remoteFromUUID(remoteUUID)
+			remote.functionUpdate(newIRFunction)
+		except:  #Dump the JSON on error so it can be manually added and all that effort isn't lost.
+			print(f'ERROR while saving function:  newIRFunction = {newIRFunction.toJSON()!r}')
